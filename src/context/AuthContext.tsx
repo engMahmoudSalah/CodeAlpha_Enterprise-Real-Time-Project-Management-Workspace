@@ -145,7 +145,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Enforce real authentication: clear user and require login
         setFirebaseUser(null);
         setCurrentUser(null);
-        setAuthModalOpen(true);
       }
       setIsLoading(false);
     });
@@ -301,7 +300,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setFirebaseUser(null);
       setCurrentUser(null);
       localStorage.removeItem('pm_user_id');
-      setAuthModalOpen(true);
     } catch (err: any) {
       console.error('Firebase signOut error:', err);
     }
