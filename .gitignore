@@ -7,6 +7,6 @@ coverage/
 .env*
 !.env.example
 
-# Sensitive AI Studio Firebase configuration (DO NOT COMMIT)
+# Sensitive Firebase configuration (DO NOT COMMIT)
 firebase-applet-config.json
 firebase-blueprint.json
