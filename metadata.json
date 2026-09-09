@@ -1,0 +1,7 @@
+{
+  "name": "Project Management Tool",
+  "description": "Collaborative project management tool with Kanban boards, task assignment, real-time WebSocket communication, task discussions, and live notifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

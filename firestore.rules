@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Deny by default for unmatched paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+
+    // Users Collection: Authenticated team members can read profiles and manage user records
+    match /users/{userId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Projects Collection: Authenticated team members can view, create, update, and delete workspace projects
+    match /projects/{projectId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+
+    // Tasks Collection: Tasks belonging to workspace projects
+    match /tasks/{taskId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+
+    // Comments Collection: Discussion comments on tasks
+    match /comments/{commentId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+
+    // Activity Logs Collection: Immutable audit logs that can be purged with project deletion
+    match /activity_logs/{logId} {
+      allow read, create, delete: if isSignedIn();
+      allow update: if false;
+    }
+
+    // Notifications Collection: User notifications
+    match /notifications/{notifId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+
+    // Invitations Collection: Project invitations
+    match /invitations/{invId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+  }
+}
+
