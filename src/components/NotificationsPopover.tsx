@@ -331,7 +331,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
   }, [notifications]);
 
   return (
-    <div id="notifications-menu" className="relative" ref={containerRef}>
+    <div id="notifications-menu" className={`relative ${isOpen ? 'z-[60]' : ''}`} ref={containerRef}>
       <button
         id="notifications-trigger-btn"
         onClick={() => {
@@ -360,7 +360,7 @@ export const NotificationsPopover: React.FC<NotificationsPopoverProps> = ({
       {isOpen && (
         <div
           id="notifications-dropdown"
-          className="absolute right-[-10px] sm:right-0 mt-2 w-[calc(100vw-24px)] max-w-sm sm:w-[420px] bg-white rounded-sm shadow-sm border border-zinc-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 select-none"
+          className="absolute right-[-10px] sm:right-0 mt-2 w-[calc(100vw-24px)] max-w-sm sm:w-[420px] bg-white rounded-sm shadow-2xl border border-zinc-200/90 z-[60] overflow-hidden animate-in fade-in zoom-in-95 duration-100 select-none"
         >
           {/* Header Bar */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 bg-zinc-50/80">

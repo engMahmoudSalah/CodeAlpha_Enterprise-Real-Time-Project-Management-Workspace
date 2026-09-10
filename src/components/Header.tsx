@@ -107,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header
       id="main-header"
-      className="h-14 sm:h-16 bg-white/98 backdrop-blur-md border-b border-zinc-200/90 flex items-center justify-between px-2.5 sm:px-4 lg:px-6 shrink-0 z-30 sticky top-0 select-none w-full max-w-[1920px] mx-auto overflow-x-hidden"
+      className="h-14 sm:h-16 bg-white/98 backdrop-blur-md border-b border-zinc-200/90 flex items-center justify-between px-2.5 sm:px-4 lg:px-6 shrink-0 z-40 sticky top-0 select-none w-full max-w-[1920px] mx-auto overflow-visible"
     >
       {/* Group 1: Brand & Project Selector */}
       <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
@@ -137,7 +137,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Compact Project Switcher Pill */}
-        <div className="relative shrink min-w-0" ref={projectDropdownRef}>
+        <div className={`relative shrink min-w-0 ${projectDropdownOpen ? 'z-[60]' : ''}`} ref={projectDropdownRef}>
           <button
             id="mobile-project-dropdown-btn"
             onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {projectDropdownOpen && (
-            <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg border border-zinc-200 shadow-lg z-50 p-1 space-y-0.5 animate-in fade-in duration-100">
+            <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg border border-zinc-200 shadow-2xl z-[60] p-1 space-y-0.5 animate-in fade-in duration-100">
               <div className="px-2.5 py-1.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
                 Switch Project
               </div>
@@ -291,7 +291,7 @@ export const Header: React.FC<HeaderProps> = ({
         />
 
         {/* Consolidated Workspace Utilities & Profile Dropdown for Small / Medium Screens (< lg) */}
-        <div className="relative lg:hidden" ref={toolsDropdownRef}>
+        <div className={`relative lg:hidden ${toolsDropdownOpen ? 'z-[60]' : ''}`} ref={toolsDropdownRef}>
           <button
             onClick={() => setToolsDropdownOpen(!toolsDropdownOpen)}
             className="flex items-center gap-1.5 p-1 bg-zinc-100 hover:bg-zinc-200/80 border border-zinc-200/90 rounded-sm cursor-pointer transition-all"
@@ -313,7 +313,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {toolsDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg border border-zinc-200 shadow-xl z-50 p-1 space-y-0.5 animate-in fade-in duration-100">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg border border-zinc-200 shadow-2xl z-[60] p-1 space-y-0.5 animate-in fade-in duration-100">
               {currentUser && (
                 <div
                   onClick={() => {
@@ -452,7 +452,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Expandable Mobile Search Overlay */}
       {showMobileSearch && (
-        <div className="sm:hidden absolute inset-0 bg-white z-50 flex items-center px-3 animate-in fade-in duration-150 border-b border-zinc-200 shadow-sm">
+        <div className="sm:hidden absolute inset-0 bg-white z-[60] flex items-center px-3 animate-in fade-in duration-150 border-b border-zinc-200 shadow-sm">
           <div className="relative flex-1 flex items-center">
             <span className="absolute left-3 text-zinc-400 pointer-events-none">
               <Search className="h-4 w-4" />

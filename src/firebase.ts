@@ -20,7 +20,14 @@ import {
   getDocFromServer,
   type Firestore,
 } from 'firebase/firestore';
-import fileConfig from '../firebase-applet-config.json';
+// Discover firebase-applet-config.json safely if present without build errors
+const configModules = ((import.meta as any).glob?.('../firebase-applet-config.json', {
+  eager: true,
+}) || {}) as Record<string, any>;
+
+const fileConfig = (configModules['../firebase-applet-config.json']?.default ||
+  configModules['../firebase-applet-config.json'] ||
+  {}) as Record<string, string>;
 
 export const firebaseConfig = {
   projectId: fileConfig.projectId || 'voltaic-condition-mj1d7',
@@ -41,16 +48,16 @@ export const isFirebaseConfigured: boolean = Boolean(
   firebaseConfig.apiKey.length > 20
 );
 
-// Initialize Firebase App singleton safely
+// Initialize Firebase App singleton safely with fallback configuration
 const app = getApps().length > 0
   ? getApp()
   : initializeApp({
-      projectId: firebaseConfig.projectId,
-      appId: firebaseConfig.appId,
-      apiKey: firebaseConfig.apiKey,
-      authDomain: firebaseConfig.authDomain,
-      storageBucket: firebaseConfig.storageBucket,
-      messagingSenderId: firebaseConfig.messagingSenderId,
+      projectId: firebaseConfig.projectId || 'voltaic-condition-mj1d7',
+      appId: firebaseConfig.appId || '1:563460478547:web:localFallbackAppId',
+      apiKey: firebaseConfig.apiKey || 'AIzaSyFallbackKeyForSafeBuild00000',
+      authDomain: firebaseConfig.authDomain || 'voltaic-condition-mj1d7.firebaseapp.com',
+      storageBucket: firebaseConfig.storageBucket || '',
+      messagingSenderId: firebaseConfig.messagingSenderId || '563460478547',
     });
 
 // Initialize Firebase Authentication & Google Provider
