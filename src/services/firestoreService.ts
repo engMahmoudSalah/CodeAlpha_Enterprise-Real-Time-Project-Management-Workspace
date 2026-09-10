@@ -13,7 +13,7 @@ import {
   limit,
   or,
 } from 'firebase/firestore';
-import { db, auth, signInAnonymously } from '../firebase';
+import { db, auth, signInAnonymously, isFirebaseConfigured } from '../firebase';
 import {
   Project,
   Task,
@@ -125,6 +125,21 @@ export async function seedInitialFirestoreData(_seedUser: User): Promise<void> {
   return;
 }
 
+// Local storage fallback constants & events
+const LOCAL_PROJECTS_KEY = 'pm_local_projects';
+const LOCAL_TASKS_KEY = 'pm_local_tasks';
+const LOCAL_USERS_KEY = 'pm_local_users';
+const LOCAL_COMMENTS_KEY = 'pm_local_comments';
+const LOCAL_ACTIVITY_KEY = 'pm_local_activity';
+const LOCAL_NOTIFS_KEY = 'pm_local_notifications';
+const LOCAL_INVITES_KEY = 'pm_local_invitations';
+
+function notifyLocalChange() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('pm_data_changed'));
+  }
+}
+
 // ----------------------------------------------------
 // USERS
 // ----------------------------------------------------
@@ -132,6 +147,30 @@ export function subscribeUsers(
   onUpdate: (users: User[]) => void,
   onError?: (err: Error) => void
 ) {
+  if (!isFirebaseConfigured) {
+    const fetchLocal = () => {
+      try {
+        const stored = localStorage.getItem(LOCAL_USERS_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            onUpdate(parsed);
+            return;
+          }
+        }
+      } catch (_) {}
+      onUpdate([]);
+    };
+    fetchLocal();
+    const handleStorage = () => fetchLocal();
+    window.addEventListener('pm_data_changed', handleStorage);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('pm_data_changed', handleStorage);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }
+
   if (!auth.currentUser) {
     onUpdate([]);
     return () => {};
@@ -154,6 +193,18 @@ export function subscribeUsers(
 }
 
 export async function upsertUserInFirestore(user: User): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_USERS_KEY);
+      let users: User[] = stored ? JSON.parse(stored) : [];
+      const idx = users.findIndex((u) => u.id === user.id);
+      if (idx >= 0) users[idx] = { ...users[idx], ...user };
+      else users.push(user);
+      localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+      notifyLocalChange();
+    } catch (_) {}
+    return;
+  }
   const userRef = doc(db, USERS_COL, user.id);
   await setDoc(userRef, cleanFirestoreData({
     ...user,
@@ -163,6 +214,16 @@ export async function upsertUserInFirestore(user: User): Promise<void> {
 
 export async function getUserFromFirestore(userId: string): Promise<User | null> {
   if (!userId) return null;
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_USERS_KEY);
+      if (stored) {
+        const users: User[] = JSON.parse(stored);
+        return users.find((u) => u.id === userId) || null;
+      }
+    } catch (_) {}
+    return null;
+  }
   try {
     const userRef = doc(db, USERS_COL, userId);
     const snap = await getDoc(userRef);
@@ -247,6 +308,43 @@ export function subscribeProjects(
   onUpdate: (projects: Project[]) => void,
   onError?: (err: Error) => void
 ) {
+  if (!isFirebaseConfigured) {
+    const fetchLocal = () => {
+      try {
+        const stored = localStorage.getItem(LOCAL_PROJECTS_KEY);
+        let projects: Project[] = stored ? JSON.parse(stored) : [];
+        if (projects.length === 0) {
+          const starterProject: Project = {
+            id: 'proj-velocity-primary',
+            name: 'Core Platform Workspace',
+            description: 'Main product iteration and task management workspace.',
+            color: '#6366F1',
+            icon: 'Folder',
+            columns: DEFAULT_PROJECT_COLUMNS.map((c) => ({ ...c, projectId: 'proj-velocity-primary' })),
+            memberIds: [userId],
+            members: { [userId]: 'owner' },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: userId,
+          };
+          projects = [starterProject];
+          localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(projects));
+        }
+        onUpdate(projects);
+      } catch (_) {
+        onUpdate([]);
+      }
+    };
+    fetchLocal();
+    const handleUpdate = () => fetchLocal();
+    window.addEventListener('pm_data_changed', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('pm_data_changed', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }
+
   if (!auth.currentUser) {
     onUpdate([]);
     return () => {};
@@ -309,6 +407,17 @@ export async function createProjectInFirestore(
     createdBy: user.id,
   };
 
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_PROJECTS_KEY);
+      const projects: Project[] = stored ? JSON.parse(stored) : [];
+      projects.push(project);
+      localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(projects));
+      notifyLocalChange();
+    } catch (_) {}
+    return project;
+  }
+
   await setDoc(doc(db, PROJECTS_COL, id), cleanFirestoreData(project));
 
   // Log activity
@@ -326,6 +435,21 @@ export async function updateProjectInFirestore(
   projectId: string,
   updates: Partial<Project>
 ): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_PROJECTS_KEY);
+      if (stored) {
+        const projects: Project[] = JSON.parse(stored);
+        const idx = projects.findIndex((p) => p.id === projectId);
+        if (idx >= 0) {
+          projects[idx] = { ...projects[idx], ...updates, updatedAt: new Date().toISOString() };
+          localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(projects));
+          notifyLocalChange();
+        }
+      }
+    } catch (_) {}
+    return;
+  }
   const ref = doc(db, PROJECTS_COL, projectId);
   await updateDoc(ref, cleanFirestoreData({
     ...updates,
@@ -337,6 +461,24 @@ export async function updateProjectInFirestore(
  * Permanently delete a project and cascade delete all associated tasks, invitations, comments, and logs
  */
 export async function deleteProjectInFirestore(projectId: string): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_PROJECTS_KEY);
+      if (stored) {
+        const projects: Project[] = JSON.parse(stored);
+        const filtered = projects.filter((p) => p.id !== projectId);
+        localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(filtered));
+      }
+      const tasksStored = localStorage.getItem(LOCAL_TASKS_KEY);
+      if (tasksStored) {
+        const tasks: Task[] = JSON.parse(tasksStored);
+        const filtered = tasks.filter((t) => t.projectId !== projectId);
+        localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(filtered));
+      }
+      notifyLocalChange();
+    } catch (_) {}
+    return;
+  }
   try {
     // Ensure Firebase auth session is active
     if (!auth.currentUser) {
@@ -417,6 +559,83 @@ export function subscribeTasks(
   onUpdate: (tasks: Task[]) => void,
   onError?: (err: Error) => void
 ) {
+  if (!isFirebaseConfigured) {
+    const fetchLocal = () => {
+      try {
+        const stored = localStorage.getItem(LOCAL_TASKS_KEY);
+        let tasks: Task[] = stored ? JSON.parse(stored) : [];
+        const projectTasks = tasks.filter((t) => t.projectId === projectId);
+        if (projectTasks.length === 0 && tasks.length === 0) {
+          const starterTasks: Task[] = [
+            {
+              id: 'task-starter-1',
+              projectId,
+              title: 'Review System Architecture & Tech Specs',
+              description: 'Examine API interfaces, database schema models, and security rules.',
+              columnId: 'col-todo',
+              priority: 'high',
+              dueDate: '',
+              order: 0,
+              assigneeIds: [],
+              tags: ['Architecture', 'Docs'],
+              subtasks: [{ id: 'st-1', text: 'Verify database connections', completed: true }],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              createdBy: 'system',
+            },
+            {
+              id: 'task-starter-2',
+              projectId,
+              title: 'Configure Workspace Collaboration',
+              description: 'Connect live synchronization and team member invitations.',
+              columnId: 'col-in-progress',
+              priority: 'medium',
+              dueDate: '',
+              order: 1,
+              assigneeIds: [],
+              tags: ['Feature', 'Sync'],
+              subtasks: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              createdBy: 'system',
+            },
+            {
+              id: 'task-starter-3',
+              projectId,
+              title: 'Launch Velocity Board',
+              description: 'Project board is active, responsive, and ready for productivity.',
+              columnId: 'col-done',
+              priority: 'low',
+              dueDate: '',
+              order: 2,
+              assigneeIds: [],
+              tags: ['Milestone'],
+              subtasks: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              createdBy: 'system',
+            },
+          ];
+          localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(starterTasks));
+          onUpdate(starterTasks);
+          return;
+        }
+        projectTasks.sort((a, b) => a.order - b.order);
+        onUpdate(projectTasks);
+      } catch (_) {
+        onUpdate([]);
+      }
+    };
+    fetchLocal();
+    const handleUpdate = () => fetchLocal();
+    window.addEventListener('pm_data_changed', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('pm_data_changed', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }
+
   if (!auth.currentUser) {
     onUpdate([]);
     return () => {};
@@ -464,6 +683,17 @@ export async function createTaskInFirestore(
     createdBy: user.id,
   };
 
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_TASKS_KEY);
+      const tasks: Task[] = stored ? JSON.parse(stored) : [];
+      tasks.push(task);
+      localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(tasks));
+      notifyLocalChange();
+    } catch (_) {}
+    return task;
+  }
+
   await setDoc(doc(db, TASKS_COL, id), cleanFirestoreData(task));
 
   // Log activity
@@ -497,6 +727,16 @@ export async function createTaskInFirestore(
 }
 
 export async function getTaskFromFirestore(taskId: string): Promise<Task | null> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_TASKS_KEY);
+      if (stored) {
+        const tasks: Task[] = JSON.parse(stored);
+        return tasks.find((t) => t.id === taskId) || null;
+      }
+    } catch (_) {}
+    return null;
+  }
   const ref = doc(db, TASKS_COL, taskId);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
@@ -509,6 +749,21 @@ export async function updateTaskInFirestore(
   user?: User,
   actionSummary?: string
 ): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_TASKS_KEY);
+      if (stored) {
+        const tasks: Task[] = JSON.parse(stored);
+        const idx = tasks.findIndex((t) => t.id === taskId);
+        if (idx >= 0) {
+          tasks[idx] = { ...tasks[idx], ...updates, updatedAt: new Date().toISOString() };
+          localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(tasks));
+          notifyLocalChange();
+        }
+      }
+    } catch (_) {}
+    return;
+  }
   const ref = doc(db, TASKS_COL, taskId);
 
   let existingTask: Task | null = null;
@@ -602,6 +857,18 @@ export async function deleteTaskInFirestore(
   taskTitle: string,
   user: User
 ): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_TASKS_KEY);
+      if (stored) {
+        const tasks: Task[] = JSON.parse(stored);
+        const filtered = tasks.filter((t) => t.id !== taskId);
+        localStorage.setItem(LOCAL_TASKS_KEY, JSON.stringify(filtered));
+        notifyLocalChange();
+      }
+    } catch (_) {}
+    return;
+  }
   await deleteDoc(doc(db, TASKS_COL, taskId));
 
   await logActivityInFirestore({
@@ -623,6 +890,28 @@ export function subscribeComments(
   onUpdate: (comments: Comment[]) => void,
   onError?: (err: Error) => void
 ) {
+  if (!isFirebaseConfigured) {
+    const fetchLocal = () => {
+      try {
+        const stored = localStorage.getItem(LOCAL_COMMENTS_KEY);
+        const comments: Comment[] = stored ? JSON.parse(stored) : [];
+        const taskComments = comments.filter((c) => c.taskId === taskId);
+        taskComments.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        onUpdate(taskComments);
+      } catch (_) {
+        onUpdate([]);
+      }
+    };
+    fetchLocal();
+    const handleUpdate = () => fetchLocal();
+    window.addEventListener('pm_data_changed', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('pm_data_changed', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }
+
   if (!auth.currentUser) {
     onUpdate([]);
     return () => {};
@@ -669,6 +958,17 @@ export async function addCommentInFirestore(
     text: commentData.text,
     createdAt: now,
   };
+
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_COMMENTS_KEY);
+      const comments: Comment[] = stored ? JSON.parse(stored) : [];
+      comments.push(comment);
+      localStorage.setItem(LOCAL_COMMENTS_KEY, JSON.stringify(comments));
+      notifyLocalChange();
+    } catch (_) {}
+    return comment;
+  }
 
   await setDoc(doc(db, COMMENTS_COL, id), cleanFirestoreData(comment));
 
@@ -778,6 +1078,28 @@ export function subscribeActivityLogs(
   onUpdate: (logs: ActivityLog[]) => void,
   onError?: (err: Error) => void
 ) {
+  if (!isFirebaseConfigured) {
+    const fetchLocal = () => {
+      try {
+        const stored = localStorage.getItem(LOCAL_ACTIVITY_KEY);
+        const logs: ActivityLog[] = stored ? JSON.parse(stored) : [];
+        const projectLogs = logs.filter((l) => l.projectId === projectId);
+        projectLogs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        onUpdate(projectLogs);
+      } catch (_) {
+        onUpdate([]);
+      }
+    };
+    fetchLocal();
+    const handleUpdate = () => fetchLocal();
+    window.addEventListener('pm_data_changed', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('pm_data_changed', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }
+
   if (!auth.currentUser) {
     onUpdate([]);
     return () => {};
@@ -809,6 +1131,16 @@ export async function logActivityInFirestore(
     id,
     createdAt: new Date().toISOString(),
   };
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_ACTIVITY_KEY);
+      const logs: ActivityLog[] = stored ? JSON.parse(stored) : [];
+      logs.push(log);
+      localStorage.setItem(LOCAL_ACTIVITY_KEY, JSON.stringify(logs));
+      notifyLocalChange();
+    } catch (_) {}
+    return;
+  }
   await setDoc(doc(db, ACTIVITY_COL, id), cleanFirestoreData(log));
 }
 
@@ -816,6 +1148,18 @@ export async function clearProjectActivityLogsInFirestore(
   projectId: string,
   actor: User
 ): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_ACTIVITY_KEY);
+      if (stored) {
+        const logs: ActivityLog[] = JSON.parse(stored);
+        const filtered = logs.filter((l) => l.projectId !== projectId);
+        localStorage.setItem(LOCAL_ACTIVITY_KEY, JSON.stringify(filtered));
+        notifyLocalChange();
+      }
+    } catch (_) {}
+    return;
+  }
   const q = query(collection(db, ACTIVITY_COL), where('projectId', '==', projectId));
   const snap = await getDocs(q);
   const deletePromises = snap.docs.map((d) => deleteDoc(d.ref));
@@ -837,6 +1181,28 @@ export function subscribeNotifications(
   onUpdate: (notifications: Notification[]) => void,
   onError?: (err: Error) => void
 ) {
+  if (!isFirebaseConfigured) {
+    const fetchLocal = () => {
+      try {
+        const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
+        const notifs: Notification[] = stored ? JSON.parse(stored) : [];
+        const userNotifs = notifs.filter((n) => n.userId === userId);
+        userNotifs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        onUpdate(userNotifs);
+      } catch (_) {
+        onUpdate([]);
+      }
+    };
+    fetchLocal();
+    const handleUpdate = () => fetchLocal();
+    window.addEventListener('pm_data_changed', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('pm_data_changed', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }
+
   if (!auth.currentUser) {
     onUpdate([]);
     return () => {};
@@ -869,15 +1235,54 @@ export async function createNotificationInFirestore(
     read: false,
     createdAt: new Date().toISOString(),
   };
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
+      const notifs: Notification[] = stored ? JSON.parse(stored) : [];
+      notifs.push(notification);
+      localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(notifs));
+      notifyLocalChange();
+    } catch (_) {}
+    return;
+  }
   await setDoc(doc(db, NOTIFICATIONS_COL, id), cleanFirestoreData(notification));
 }
 
 export async function markNotificationReadInFirestore(notificationId: string): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
+      if (stored) {
+        const notifs: Notification[] = JSON.parse(stored);
+        const target = notifs.find((n) => n.id === notificationId);
+        if (target) {
+          target.read = true;
+          localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(notifs));
+          notifyLocalChange();
+        }
+      }
+    } catch (_) {}
+    return;
+  }
   const ref = doc(db, NOTIFICATIONS_COL, notificationId);
   await updateDoc(ref, { read: true });
 }
 
 export async function markAllNotificationsReadInFirestore(userId: string): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
+      if (stored) {
+        const notifs: Notification[] = JSON.parse(stored);
+        notifs.forEach((n) => {
+          if (n.userId === userId) n.read = true;
+        });
+        localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(notifs));
+        notifyLocalChange();
+      }
+    } catch (_) {}
+    return;
+  }
   const q = query(
     collection(db, NOTIFICATIONS_COL),
     where('userId', '==', userId),
@@ -892,11 +1297,35 @@ export async function markAllNotificationsReadInFirestore(userId: string): Promi
 }
 
 export async function deleteNotificationInFirestore(notificationId: string): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
+      if (stored) {
+        const notifs: Notification[] = JSON.parse(stored);
+        const filtered = notifs.filter((n) => n.id !== notificationId);
+        localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(filtered));
+        notifyLocalChange();
+      }
+    } catch (_) {}
+    return;
+  }
   const ref = doc(db, NOTIFICATIONS_COL, notificationId);
   await deleteDoc(ref);
 }
 
 export async function clearAllNotificationsInFirestore(userId: string): Promise<void> {
+  if (!isFirebaseConfigured) {
+    try {
+      const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
+      if (stored) {
+        const notifs: Notification[] = JSON.parse(stored);
+        const filtered = notifs.filter((n) => n.userId !== userId);
+        localStorage.setItem(LOCAL_NOTIFS_KEY, JSON.stringify(filtered));
+        notifyLocalChange();
+      }
+    } catch (_) {}
+    return;
+  }
   const q = query(collection(db, NOTIFICATIONS_COL), where('userId', '==', userId));
   const snap = await getDocs(q);
   const deletePromises = snap.docs.map((docSnap) => deleteDoc(docSnap.ref));

@@ -3,6 +3,7 @@ import { User } from '../types';
 import {
   auth,
   googleProvider,
+  isFirebaseConfigured,
   signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -68,6 +69,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Subscribe to live Firestore users list
   useEffect(() => {
+    if (!isFirebaseConfigured) {
+      // Local mode: load cached local users
+      try {
+        const stored = localStorage.getItem('pm_local_users');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setUsers(parsed);
+          }
+        }
+      } catch (_) {}
+      return;
+    }
+
     if (!firebaseUser) {
       setUsers([]);
       return;
@@ -91,8 +106,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, [firebaseUser]);
 
-  // Listen to Firebase Auth state
+  // Listen to Firebase Auth state (or initialize local session if Firebase unconfigured)
   useEffect(() => {
+    if (!isFirebaseConfigured) {
+      // Graceful local workspace initialization
+      try {
+        const savedUserId = localStorage.getItem('pm_user_id');
+        const storedUsers = localStorage.getItem('pm_local_users');
+        let localList: User[] = [];
+        if (storedUsers) {
+          try {
+            localList = JSON.parse(storedUsers);
+          } catch (_) {}
+        }
+        if (!Array.isArray(localList) || localList.length === 0) {
+          const defaultLead: User = {
+            id: 'u-lead-01',
+            name: 'Workspace Lead',
+            email: 'lead@velocity.local',
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=VelocityAdmin',
+            title: 'Lead Architect',
+            role: 'admin',
+            color: '#6366f1',
+            statusText: 'Active',
+            department: 'Engineering',
+            createdAt: new Date().toISOString(),
+          };
+          localList = [defaultLead];
+          localStorage.setItem('pm_local_users', JSON.stringify(localList));
+        }
+        setUsers(localList);
+        const matched = localList.find((u) => u.id === savedUserId) || localList[0];
+        setCurrentUser(matched);
+        localStorage.setItem('pm_user_id', matched.id);
+      } catch (e) {
+        console.warn('Local session bootstrap notice:', e);
+      }
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
@@ -167,13 +220,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sign In with Email & Password
   const signInWithEmail = useCallback(async (email: string, pass: string) => {
     setAuthError(null);
+    if (!isFirebaseConfigured) {
+      let localUsers: User[] = [];
+      try {
+        const stored = localStorage.getItem('pm_local_users');
+        if (stored) localUsers = JSON.parse(stored);
+      } catch (_) {}
+      let user = localUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+      if (!user) {
+        user = {
+          id: `u-${Date.now()}`,
+          name: email.split('@')[0],
+          email,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
+          title: 'Team Member',
+          role: 'admin',
+          color: '#6366f1',
+          createdAt: new Date().toISOString(),
+        };
+        localUsers.push(user);
+        localStorage.setItem('pm_local_users', JSON.stringify(localUsers));
+        setUsers(localUsers);
+      }
+      setCurrentUser(user);
+      localStorage.setItem('pm_user_id', user.id);
+      setAuthModalOpen(false);
+      return;
+    }
+
     try {
       await signInWithEmailAndPassword(auth, email, pass);
       setAuthModalOpen(false);
     } catch (err: any) {
       console.error('Firebase signIn error:', err);
       let msg = err.message || 'Failed to sign in';
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+      if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
+        msg = 'Firebase API key is unconfigured. Defaulted to local session.';
+        // Auto fallback to local user
+        const fallbackUser: User = {
+          id: `u-${Date.now()}`,
+          name: email.split('@')[0],
+          email,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
+          title: 'Team Member',
+          role: 'admin',
+          color: '#6366f1',
+          createdAt: new Date().toISOString(),
+        };
+        setCurrentUser(fallbackUser);
+        localStorage.setItem('pm_user_id', fallbackUser.id);
+        setAuthModalOpen(false);
+        return;
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
         msg = 'Invalid email or password. Please try again.';
       } else if (err.code === 'auth/user-not-found') {
         msg = 'No account found with this email address.';
@@ -193,6 +291,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: 'admin' | 'manager' | 'member' = 'member'
     ) => {
       setAuthError(null);
+      if (!isFirebaseConfigured) {
+        let localUsers: User[] = [];
+        try {
+          const stored = localStorage.getItem('pm_local_users');
+          if (stored) localUsers = JSON.parse(stored);
+        } catch (_) {}
+        const newUser: User = {
+          id: `u-${Date.now()}`,
+          name,
+          email,
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+          title,
+          role,
+          color: '#6366f1',
+          createdAt: new Date().toISOString(),
+        };
+        localUsers.push(newUser);
+        localStorage.setItem('pm_local_users', JSON.stringify(localUsers));
+        setUsers(localUsers);
+        setCurrentUser(newUser);
+        localStorage.setItem('pm_user_id', newUser.id);
+        setAuthModalOpen(false);
+        return;
+      }
+
       try {
         const cred = await createUserWithEmailAndPassword(auth, email, pass);
         const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`;
@@ -217,7 +340,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err: any) {
         console.error('Firebase signUp error:', err);
         let msg = err.message || 'Failed to create account';
-        if (err.code === 'auth/email-already-in-use') {
+        if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
+          // Fallback to local session
+          const fallbackUser: User = {
+            id: `u-${Date.now()}`,
+            name,
+            email,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+            title,
+            role,
+            color: '#6366f1',
+            createdAt: new Date().toISOString(),
+          };
+          setCurrentUser(fallbackUser);
+          localStorage.setItem('pm_user_id', fallbackUser.id);
+          setAuthModalOpen(false);
+          return;
+        } else if (err.code === 'auth/email-already-in-use') {
           msg = 'An account with this email address already exists. Please sign in instead.';
         } else if (err.code === 'auth/weak-password') {
           msg = 'Password is too weak. Please use at least 6 characters.';
@@ -232,37 +371,113 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sign In with Google Popup
   const signInWithGoogle = useCallback(async () => {
     setAuthError(null);
+    if (!isFirebaseConfigured) {
+      const googleUser: User = {
+        id: 'google-lead',
+        name: 'Google User',
+        email: 'user@gmail.com',
+        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=google-auth',
+        title: 'Workspace Lead',
+        role: 'admin',
+        color: '#6366f1',
+        createdAt: new Date().toISOString(),
+      };
+      setCurrentUser(googleUser);
+      localStorage.setItem('pm_user_id', googleUser.id);
+      setUsers((prev) => (prev.some((u) => u.id === googleUser.id) ? prev : [googleUser, ...prev]));
+      setAuthModalOpen(false);
+      return;
+    }
+
     try {
       const res = await signInWithPopup(auth, googleProvider);
       const user = res.user;
-      const displayName = user.displayName || 'Google User';
+      const existing = await getUserFromFirestore(user.uid).catch(() => null);
+
+      const displayName = user.displayName || existing?.name || user.email?.split('@')[0] || 'Google User';
+      const avatarUrl =
+        user.photoURL ||
+        existing?.avatar ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`;
+
       const appUser: User = {
         id: user.uid,
         name: displayName,
-        email: user.email || '',
-        avatar:
-          user.photoURL ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}`,
-        title: 'Team Member',
-        role: 'admin',
-        color: '#6366f1',
+        email: user.email || existing?.email || '',
+        avatar: avatarUrl,
+        title: existing?.title || 'Workspace Architect',
+        role: existing?.role || 'admin',
+        color: existing?.color || '#6366f1',
+        department: existing?.department || 'Engineering',
+        statusText: existing?.statusText || 'Active',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
+
       await upsertUserInFirestore(appUser);
       setCurrentUser(appUser);
+      localStorage.setItem('pm_user_id', appUser.id);
       setAuthModalOpen(false);
     } catch (err: any) {
       console.error('Firebase Google Auth error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        const msg = err.message || 'Google authentication failed';
-        setAuthError(msg);
-        throw new Error(msg);
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        // User voluntarily closed popup
+        return;
       }
+
+      let msg = err.message || 'Google authentication failed';
+      if (err.code === 'auth/unauthorized-domain') {
+        const domain = typeof window !== 'undefined' ? window.location.hostname : 'current domain';
+        msg = `Domain "${domain}" is not in Firebase Authorized Domains. In Firebase Console, go to Authentication > Settings > Authorized Domains and add this domain.`;
+      } else if (err.code === 'auth/popup-blocked') {
+        msg = 'Sign-in popup was blocked by your browser. Please allow popups for this site or open in a new tab.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        msg = 'Google provider is not enabled in Firebase Console. Go to Authentication > Sign-in method and enable Google.';
+      } else if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
+        const fallbackUser: User = {
+          id: 'google-lead',
+          name: 'Google User',
+          email: 'user@gmail.com',
+          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=google-auth',
+          title: 'Workspace Lead',
+          role: 'admin',
+          color: '#6366f1',
+          createdAt: new Date().toISOString(),
+        };
+        setCurrentUser(fallbackUser);
+        localStorage.setItem('pm_user_id', fallbackUser.id);
+        setAuthModalOpen(false);
+        return;
+      }
+
+      setAuthError(msg);
+      throw new Error(msg);
     }
   }, []);
 
   // Instant Guest Mode (Anonymous)
   const signInGuest = useCallback(async () => {
     setAuthError(null);
+    if (!isFirebaseConfigured) {
+      const guestId = `guest-${Math.random().toString(36).substring(2, 7)}`;
+      const guestUser: User = {
+        id: guestId,
+        name: `Guest (${guestId.substring(6)})`,
+        email: 'guest@velocity.local',
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${guestId}`,
+        title: 'Guest Collaborator',
+        role: 'member',
+        color: '#10B981',
+        createdAt: new Date().toISOString(),
+      };
+      setCurrentUser(guestUser);
+      localStorage.setItem('pm_user_id', guestUser.id);
+      setUsers((prev) => (prev.some((u) => u.id === guestUser.id) ? prev : [guestUser, ...prev]));
+      setAuthModalOpen(false);
+      return;
+    }
+
     try {
       const res = await signInAnonymously(auth);
       const guestUid = res.user.uid;
@@ -284,6 +499,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthModalOpen(false);
     } catch (err: any) {
       console.error('Guest session setup error:', err);
+      if (err.code === 'auth/api-key-not-valid' || err.message?.includes('api-key-not-valid')) {
+        const guestId = `guest-${Math.random().toString(36).substring(2, 7)}`;
+        const guestUser: User = {
+          id: guestId,
+          name: `Guest (${guestId.substring(6)})`,
+          email: 'guest@velocity.local',
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${guestId}`,
+          title: 'Guest Collaborator',
+          role: 'member',
+          color: '#10B981',
+          createdAt: new Date().toISOString(),
+        };
+        setCurrentUser(guestUser);
+        localStorage.setItem('pm_user_id', guestUser.id);
+        setUsers((prev) => (prev.some((u) => u.id === guestUser.id) ? prev : [guestUser, ...prev]));
+        setAuthModalOpen(false);
+        return;
+      }
       let msg = err.message || 'Failed to initialize guest session';
       if (err.code === 'auth/operation-not-allowed') {
         msg = 'Anonymous authentication is not enabled in your Firebase project. Please enable it in the Firebase Console under Authentication > Sign-in method.';
@@ -296,12 +529,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Sign Out
   const logout = useCallback(async () => {
     try {
-      await signOut(auth);
+      if (isFirebaseConfigured) {
+        await signOut(auth);
+      }
       setFirebaseUser(null);
       setCurrentUser(null);
       localStorage.removeItem('pm_user_id');
     } catch (err: any) {
-      console.error('Firebase signOut error:', err);
+      console.error('SignOut error:', err);
     }
   }, []);
 
