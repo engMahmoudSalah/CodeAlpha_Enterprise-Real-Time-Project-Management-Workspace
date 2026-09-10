@@ -140,6 +140,10 @@ function notifyLocalChange() {
   }
 }
 
+export function isCloudSyncActive(): boolean {
+  return Boolean(isFirebaseConfigured && auth.currentUser);
+}
+
 // ----------------------------------------------------
 // USERS
 // ----------------------------------------------------
@@ -147,7 +151,7 @@ export function subscribeUsers(
   onUpdate: (users: User[]) => void,
   onError?: (err: Error) => void
 ) {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     const fetchLocal = () => {
       try {
         const stored = localStorage.getItem(LOCAL_USERS_KEY);
@@ -193,7 +197,7 @@ export function subscribeUsers(
 }
 
 export async function upsertUserInFirestore(user: User): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_USERS_KEY);
       let users: User[] = stored ? JSON.parse(stored) : [];
@@ -214,7 +218,7 @@ export async function upsertUserInFirestore(user: User): Promise<void> {
 
 export async function getUserFromFirestore(userId: string): Promise<User | null> {
   if (!userId) return null;
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_USERS_KEY);
       if (stored) {
@@ -308,7 +312,7 @@ export function subscribeProjects(
   onUpdate: (projects: Project[]) => void,
   onError?: (err: Error) => void
 ) {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     const fetchLocal = () => {
       try {
         const stored = localStorage.getItem(LOCAL_PROJECTS_KEY);
@@ -407,7 +411,7 @@ export async function createProjectInFirestore(
     createdBy: user.id,
   };
 
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_PROJECTS_KEY);
       const projects: Project[] = stored ? JSON.parse(stored) : [];
@@ -435,7 +439,7 @@ export async function updateProjectInFirestore(
   projectId: string,
   updates: Partial<Project>
 ): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_PROJECTS_KEY);
       if (stored) {
@@ -461,7 +465,7 @@ export async function updateProjectInFirestore(
  * Permanently delete a project and cascade delete all associated tasks, invitations, comments, and logs
  */
 export async function deleteProjectInFirestore(projectId: string): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_PROJECTS_KEY);
       if (stored) {
@@ -559,7 +563,7 @@ export function subscribeTasks(
   onUpdate: (tasks: Task[]) => void,
   onError?: (err: Error) => void
 ) {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     const fetchLocal = () => {
       try {
         const stored = localStorage.getItem(LOCAL_TASKS_KEY);
@@ -683,7 +687,7 @@ export async function createTaskInFirestore(
     createdBy: user.id,
   };
 
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_TASKS_KEY);
       const tasks: Task[] = stored ? JSON.parse(stored) : [];
@@ -727,7 +731,7 @@ export async function createTaskInFirestore(
 }
 
 export async function getTaskFromFirestore(taskId: string): Promise<Task | null> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_TASKS_KEY);
       if (stored) {
@@ -749,7 +753,7 @@ export async function updateTaskInFirestore(
   user?: User,
   actionSummary?: string
 ): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_TASKS_KEY);
       if (stored) {
@@ -857,7 +861,7 @@ export async function deleteTaskInFirestore(
   taskTitle: string,
   user: User
 ): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_TASKS_KEY);
       if (stored) {
@@ -890,7 +894,7 @@ export function subscribeComments(
   onUpdate: (comments: Comment[]) => void,
   onError?: (err: Error) => void
 ) {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     const fetchLocal = () => {
       try {
         const stored = localStorage.getItem(LOCAL_COMMENTS_KEY);
@@ -959,7 +963,7 @@ export async function addCommentInFirestore(
     createdAt: now,
   };
 
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_COMMENTS_KEY);
       const comments: Comment[] = stored ? JSON.parse(stored) : [];
@@ -1058,6 +1062,18 @@ export async function deleteCommentInFirestore(
   taskTitle: string,
   user: User
 ): Promise<void> {
+  if (!isCloudSyncActive()) {
+    try {
+      const stored = localStorage.getItem(LOCAL_COMMENTS_KEY);
+      if (stored) {
+        const comments: Comment[] = JSON.parse(stored);
+        const filtered = comments.filter((c) => c.id !== commentId);
+        localStorage.setItem(LOCAL_COMMENTS_KEY, JSON.stringify(filtered));
+        notifyLocalChange();
+      }
+    } catch (_) {}
+    return;
+  }
   await deleteDoc(doc(db, COMMENTS_COL, commentId));
 
   await logActivityInFirestore({
@@ -1078,7 +1094,7 @@ export function subscribeActivityLogs(
   onUpdate: (logs: ActivityLog[]) => void,
   onError?: (err: Error) => void
 ) {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     const fetchLocal = () => {
       try {
         const stored = localStorage.getItem(LOCAL_ACTIVITY_KEY);
@@ -1131,7 +1147,7 @@ export async function logActivityInFirestore(
     id,
     createdAt: new Date().toISOString(),
   };
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_ACTIVITY_KEY);
       const logs: ActivityLog[] = stored ? JSON.parse(stored) : [];
@@ -1148,7 +1164,7 @@ export async function clearProjectActivityLogsInFirestore(
   projectId: string,
   actor: User
 ): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_ACTIVITY_KEY);
       if (stored) {
@@ -1181,7 +1197,7 @@ export function subscribeNotifications(
   onUpdate: (notifications: Notification[]) => void,
   onError?: (err: Error) => void
 ) {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     const fetchLocal = () => {
       try {
         const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
@@ -1235,7 +1251,7 @@ export async function createNotificationInFirestore(
     read: false,
     createdAt: new Date().toISOString(),
   };
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
       const notifs: Notification[] = stored ? JSON.parse(stored) : [];
@@ -1249,7 +1265,7 @@ export async function createNotificationInFirestore(
 }
 
 export async function markNotificationReadInFirestore(notificationId: string): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
       if (stored) {
@@ -1269,7 +1285,7 @@ export async function markNotificationReadInFirestore(notificationId: string): P
 }
 
 export async function markAllNotificationsReadInFirestore(userId: string): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
       if (stored) {
@@ -1297,7 +1313,7 @@ export async function markAllNotificationsReadInFirestore(userId: string): Promi
 }
 
 export async function deleteNotificationInFirestore(notificationId: string): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
       if (stored) {
@@ -1314,7 +1330,7 @@ export async function deleteNotificationInFirestore(notificationId: string): Pro
 }
 
 export async function clearAllNotificationsInFirestore(userId: string): Promise<void> {
-  if (!isFirebaseConfigured) {
+  if (!isCloudSyncActive()) {
     try {
       const stored = localStorage.getItem(LOCAL_NOTIFS_KEY);
       if (stored) {
@@ -1410,6 +1426,28 @@ export function subscribeProjectInvitations(
   onUpdate: (invitations: ProjectInvitation[]) => void,
   onError?: (err: Error) => void
 ) {
+  if (!isCloudSyncActive()) {
+    const fetchLocal = () => {
+      try {
+        const stored = localStorage.getItem(LOCAL_INVITES_KEY);
+        const list: ProjectInvitation[] = stored ? JSON.parse(stored) : [];
+        const filtered = list.filter((i) => i.projectId === projectId);
+        filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        onUpdate(filtered);
+      } catch (_) {
+        onUpdate([]);
+      }
+    };
+    fetchLocal();
+    const handleUpdate = () => fetchLocal();
+    window.addEventListener('pm_data_changed', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('pm_data_changed', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }
+
   if (!auth.currentUser) {
     onUpdate([]);
     return () => {};
@@ -1441,6 +1479,34 @@ export function subscribeUserInvitations(
   onUpdate: (invitations: ProjectInvitation[]) => void,
   onError?: (err: Error) => void
 ) {
+  if (!isCloudSyncActive()) {
+    const fetchLocal = () => {
+      try {
+        const stored = localStorage.getItem(LOCAL_INVITES_KEY);
+        const list: ProjectInvitation[] = stored ? JSON.parse(stored) : [];
+        const emailLower = (userEmail || '').trim().toLowerCase();
+        const filtered = list.filter((i) =>
+          i.status === 'pending' && (
+            (emailLower && i.inviteeEmail === emailLower) ||
+            (userId && i.inviteeId === userId)
+          )
+        );
+        filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        onUpdate(filtered);
+      } catch (_) {
+        onUpdate([]);
+      }
+    };
+    fetchLocal();
+    const handleUpdate = () => fetchLocal();
+    window.addEventListener('pm_data_changed', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('pm_data_changed', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }
+
   if (!auth.currentUser) {
     onUpdate([]);
     return () => {};
@@ -1522,6 +1588,17 @@ export async function createInvitationInFirestore(
     ...(data.note?.trim() ? { note: data.note.trim() } : {}),
   };
 
+  if (!isCloudSyncActive()) {
+    try {
+      const stored = localStorage.getItem(LOCAL_INVITES_KEY);
+      const list: ProjectInvitation[] = stored ? JSON.parse(stored) : [];
+      list.push(invitation);
+      localStorage.setItem(LOCAL_INVITES_KEY, JSON.stringify(list));
+      notifyLocalChange();
+    } catch (_) {}
+    return { invitation, previewUrl: null, emailError: null, emailSent: false };
+  }
+
   await setDoc(doc(db, INVITATIONS_COL, id), cleanFirestoreData(invitation));
 
   // Log activity in the project
@@ -1602,6 +1679,15 @@ export async function getInvitationByTokenInFirestore(
   token: string
 ): Promise<ProjectInvitation | null> {
   const cleanToken = token.trim().toUpperCase();
+  if (!isCloudSyncActive()) {
+    try {
+      const stored = localStorage.getItem(LOCAL_INVITES_KEY);
+      const list: ProjectInvitation[] = stored ? JSON.parse(stored) : [];
+      return list.find((i) => i.token === cleanToken && i.status === 'pending') || null;
+    } catch (_) {
+      return null;
+    }
+  }
   const q = query(
     collection(db, INVITATIONS_COL),
     where('token', '==', cleanToken),
@@ -1618,6 +1704,40 @@ export async function acceptInvitationInFirestore(
   user: User
 ): Promise<void> {
   const now = new Date().toISOString();
+
+  if (!isCloudSyncActive()) {
+    try {
+      const stored = localStorage.getItem(LOCAL_INVITES_KEY);
+      if (stored) {
+        const list: ProjectInvitation[] = JSON.parse(stored);
+        const idx = list.findIndex((i) => i.id === invitation.id);
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], status: 'accepted', inviteeId: user.id, respondedAt: now };
+          localStorage.setItem(LOCAL_INVITES_KEY, JSON.stringify(list));
+          notifyLocalChange();
+        }
+      }
+      const projStored = localStorage.getItem(LOCAL_PROJECTS_KEY);
+      if (projStored) {
+        const projs: Project[] = JSON.parse(projStored);
+        const pIdx = projs.findIndex((p) => p.id === invitation.projectId);
+        if (pIdx >= 0) {
+          const currentMemberIds = projs[pIdx].memberIds || [];
+          const updatedMemberIds = Array.from(new Set([...currentMemberIds, user.id]));
+          const currentMembersMap = projs[pIdx].members || {};
+          projs[pIdx] = {
+            ...projs[pIdx],
+            memberIds: updatedMemberIds,
+            members: { ...currentMembersMap, [user.id]: invitation.role },
+            updatedAt: now,
+          };
+          localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(projs));
+          notifyLocalChange();
+        }
+      }
+    } catch (_) {}
+    return;
+  }
 
   // 1. Update invitation document
   const invRef = doc(db, INVITATIONS_COL, invitation.id);
@@ -1679,6 +1799,23 @@ export async function declineInvitationInFirestore(
   user: User
 ): Promise<void> {
   const now = new Date().toISOString();
+
+  if (!isCloudSyncActive()) {
+    try {
+      const stored = localStorage.getItem(LOCAL_INVITES_KEY);
+      if (stored) {
+        const list: ProjectInvitation[] = JSON.parse(stored);
+        const idx = list.findIndex((i) => i.id === invitationId);
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], status: 'declined', inviteeId: user.id, respondedAt: now };
+          localStorage.setItem(LOCAL_INVITES_KEY, JSON.stringify(list));
+          notifyLocalChange();
+        }
+      }
+    } catch (_) {}
+    return;
+  }
+
   const invRef = doc(db, INVITATIONS_COL, invitationId);
   await updateDoc(invRef, cleanFirestoreData({
     status: 'declined',
@@ -1703,6 +1840,18 @@ export async function revokeInvitationInFirestore(
   projectId: string,
   actor: User
 ): Promise<void> {
+  if (!isCloudSyncActive()) {
+    try {
+      const stored = localStorage.getItem(LOCAL_INVITES_KEY);
+      if (stored) {
+        const list: ProjectInvitation[] = JSON.parse(stored);
+        const filtered = list.filter((i) => i.id !== invitationId);
+        localStorage.setItem(LOCAL_INVITES_KEY, JSON.stringify(filtered));
+        notifyLocalChange();
+      }
+    } catch (_) {}
+    return;
+  }
   const invRef = doc(db, INVITATIONS_COL, invitationId);
   await deleteDoc(invRef);
 

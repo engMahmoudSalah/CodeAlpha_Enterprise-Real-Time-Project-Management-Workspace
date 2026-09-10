@@ -20,14 +20,7 @@ import {
   getDocFromServer,
   type Firestore,
 } from 'firebase/firestore';
-// Discover firebase-applet-config.json safely if present without build errors
-const configModules = ((import.meta as any).glob?.('../firebase-applet-config.json', {
-  eager: true,
-}) || {}) as Record<string, any>;
-
-const fileConfig = (configModules['../firebase-applet-config.json']?.default ||
-  configModules['../firebase-applet-config.json'] ||
-  {}) as Record<string, string>;
+import fileConfig from '../firebase-applet-config.json';
 
 export const firebaseConfig = {
   projectId: fileConfig.projectId || 'voltaic-condition-mj1d7',
