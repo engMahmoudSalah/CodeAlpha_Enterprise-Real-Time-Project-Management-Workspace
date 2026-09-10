@@ -16,6 +16,8 @@ import { UserSwitcherModal } from './components/UserSwitcherModal';
 import { AuthModal } from './components/AuthModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { LandingPage } from './components/LandingPage';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { WorkspaceNavBar } from './components/WorkspaceNavBar';
 import {
   subscribeProjects,
   subscribeTasks,
@@ -956,168 +958,32 @@ const MainApplication: React.FC = () => {
           {activeProject ? (
             <>
               {/* Subheader matching Design HTML with full responsive support */}
-              <div className="px-4 sm:px-8 py-3.5 sm:py-6 flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 shrink-0 bg-zinc-50">
-                <div>
-                  <nav className="flex items-center gap-1.5 sm:gap-2 text-xs text-zinc-400 mb-1">
-                    <span>Projects</span>
-                    <span>/</span>
-                    <span className="text-zinc-600 font-medium truncate max-w-[160px] sm:max-w-md">
-                      {activeProject.name}
-                    </span>
-                    {/* Project Role Badge */}
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                      {userProjectRole === 'owner' && <Crown className="w-3 h-3 text-amber-600" />}
-                      {userProjectRole === 'admin' && <Shield className="w-3 h-3 text-blue-600" />}
-                      <span className="uppercase">{userProjectRole}</span>
-                    </span>
-                    {/* Delete Project button if owner/admin */}
-                    {(userProjectRole === 'owner' || currentUser?.role === 'admin') && (
-                      <button
-                        onClick={() => handleDeleteProject(activeProject.id, activeProject.name)}
-                        className="ml-2 text-zinc-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition-colors cursor-pointer"
-                        title="Delete this project permanently"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </nav>
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl sm:text-3xl font-extrabold text-zinc-800 tracking-tight">
-                      {viewMode === 'board' ? 'Production Board' : 'Task List'}
-                    </h2>
-                    {isMyTasksOnly && (
-                      <span className="text-xs font-bold px-2.5 py-1 bg-blue-600 text-white rounded-sm flex items-center gap-1">
-                        <CheckSquare className="w-3.5 h-3.5" />
-                        <span>My Tasks Filter Active</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                  {/* Members avatar stack */}
-                  <div
-                    onClick={() => setMembersModalOpen(true)}
-                    className="flex -space-x-2.5 items-center mr-1 sm:mr-2 cursor-pointer hover:opacity-90 transition-opacity"
-                    title="Click to manage project team"
-                  >
-                    <div className="w-8 h-8 rounded-full ring-2 ring-white bg-zinc-200 flex items-center justify-center text-[10px] font-bold text-zinc-600">
-                      +{activeProject.memberIds?.length || 1}
-                    </div>
-                    {users
-                      .filter((u) => activeProject.memberIds?.includes(u.id))
-                      .slice(0, 3)
-                      .map((u) => (
-                        <img
-                          key={u.id}
-                          src={u.avatar}
-                          alt={u.name}
-                          className="w-8 h-8 rounded-full ring-2 ring-white object-cover border border-zinc-200"
-                        />
-                      ))}
-                  </div>
-
-                  {/* View toggle (Board vs List) */}
-                  <div className="flex items-center bg-white border border-zinc-200 rounded-sm p-1">
-                    <button
-                      onClick={() => setViewMode('board')}
-                      className={`px-3 py-1.5 min-h-[36px] sm:min-h-0 rounded-sm text-xs font-bold transition-all cursor-pointer ${
-                        viewMode === 'board'
-                          ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                          : 'text-zinc-500 hover:text-zinc-800'
-                      }`}
-                    >
-                      Board
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`px-3 py-1.5 min-h-[36px] sm:min-h-0 rounded-sm text-xs font-bold transition-all cursor-pointer ${
-                        viewMode === 'list'
-                          ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                          : 'text-zinc-500 hover:text-zinc-800'
-                      }`}
-                    >
-                      List
-                    </button>
-                  </div>
-
-                  {/* Filters Toggle Button */}
-                  <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={`bg-white border border-zinc-200 text-zinc-600 px-3 sm:px-4 py-2 min-h-[40px] rounded-sm text-xs sm:text-sm font-semibold hover:bg-zinc-50 transition-colors flex items-center gap-1.5 cursor-pointer ${
-                      showFilters || assigneeFilter !== 'all' || priorityFilter !== 'all'
-                        ? 'border-blue-300 text-blue-700 bg-blue-50/50'
-                        : ''
-                    }`}
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-500" />
-                    <span>Filters</span>
-                    {(assigneeFilter !== 'all' || priorityFilter !== 'all') && (
-                      <span className="w-2 h-2 rounded-full bg-blue-600" />
-                    )}
-                  </button>
-
-                  {/* Add Task Primary Action Button */}
-                  <button
-                    onClick={() => {
-                      setCreateTaskDefaultCol(undefined);
-                      setCreateTaskModalOpen(true);
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-5 py-2 min-h-[40px] rounded-sm text-xs sm:text-sm font-bold transition-colors flex items-center gap-1.5 cursor-pointer ml-auto sm:ml-0"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add Task</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Expandable Filter Bar if toggled */}
-              {showFilters && (
-                <div className="px-4 sm:px-8 pb-3.5 flex items-center gap-2.5 sm:gap-4 flex-wrap bg-zinc-50 animate-in fade-in duration-150">
-                  <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-sm border border-zinc-200 text-xs">
-                    <span className="text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">Assignee:</span>
-                    <select
-                      value={assigneeFilter}
-                      onChange={(e) => setAssigneeFilter(e.target.value)}
-                      className="bg-transparent font-bold text-zinc-700 focus:outline-hidden cursor-pointer"
-                    >
-                      <option value="all">All Members</option>
-                      {users.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-sm border border-zinc-200 text-xs">
-                    <span className="text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">Priority:</span>
-                    <select
-                      value={priorityFilter}
-                      onChange={(e) => setPriorityFilter(e.target.value)}
-                      className="bg-transparent font-bold text-zinc-700 focus:outline-hidden cursor-pointer"
-                    >
-                      <option value="all">All Priorities</option>
-                      <option value="urgent">Urgent</option>
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                    </select>
-                  </div>
-
-                  {(assigneeFilter !== 'all' || priorityFilter !== 'all') && (
-                    <button
-                      onClick={() => {
-                        setAssigneeFilter('all');
-                        setPriorityFilter('all');
-                      }}
-                      className="text-xs text-rose-600 hover:text-rose-800 font-semibold px-2 py-1.5 cursor-pointer"
-                    >
-                      Reset Filters
-                    </button>
-                  )}
-                </div>
-              )}
+              <WorkspaceNavBar
+                activeProject={activeProject}
+                userProjectRole={userProjectRole}
+                currentUser={currentUser}
+                users={users}
+                viewMode={viewMode}
+                onChangeViewMode={(mode) => setViewMode(mode)}
+                isMyTasksOnly={isMyTasksOnly}
+                onToggleMyTasksOnly={() => setIsMyTasksOnly(!isMyTasksOnly)}
+                showFilters={showFilters}
+                onToggleFilters={() => setShowFilters(!showFilters)}
+                assigneeFilter={assigneeFilter}
+                onChangeAssigneeFilter={(val) => setAssigneeFilter(val)}
+                priorityFilter={priorityFilter}
+                onChangePriorityFilter={(val) => setPriorityFilter(val)}
+                onResetFilters={() => {
+                  setAssigneeFilter('all');
+                  setPriorityFilter('all');
+                }}
+                onOpenMembersModal={() => setMembersModalOpen(true)}
+                onOpenCreateTask={() => {
+                  setCreateTaskDefaultCol(undefined);
+                  setCreateTaskModalOpen(true);
+                }}
+                onDeleteProject={(id, name) => handleDeleteProject(id, name)}
+              />
             </>
           ) : (
             <div className="px-4 sm:px-8 py-5 border-b border-zinc-200 bg-white flex items-center justify-between">
@@ -1186,6 +1052,21 @@ const MainApplication: React.FC = () => {
           )}
         </main>
       </div>
+
+      <MobileBottomNav
+        viewMode={viewMode}
+        onChangeViewMode={(mode) => setViewMode(mode)}
+        onOpenCreateTask={() => {
+          if (activeProject) {
+            setCreateTaskDefaultCol(activeProject.columns[0]?.id);
+            setCreateTaskModalOpen(true);
+          }
+        }}
+        isMyTasksOnly={isMyTasksOnly}
+        onToggleMyTasksOnly={() => setIsMyTasksOnly(!isMyTasksOnly)}
+        onOpenMobileMenu={() => setMobileMenuOpen(true)}
+        hasActiveProject={!!activeProject}
+      />
 
       {/* Modals */}
       {selectedTask && activeProject && (
@@ -1294,7 +1175,7 @@ const MainApplication: React.FC = () => {
           {/* Drawer panel */}
           <div className="relative w-72 sm:w-80 max-w-[85vw] bg-white h-full border-r border-zinc-200 flex flex-col z-10 animate-in slide-in-from-left duration-200">
             {/* Drawer Header */}
-            <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/75">
+            <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-white shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 bg-blue-600 rounded-sm flex items-center justify-center text-white font-extrabold text-base">
                   V

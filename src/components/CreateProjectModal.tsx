@@ -79,12 +79,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/50 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-zinc-900/60 backdrop-blur-xs p-0 sm:p-4">
       <div
         id="create-project-modal"
         className="bg-white rounded-sm border border-zinc-200 w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 shrink-0">
+        <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-2.5 sm:hidden shrink-0" /><div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 shrink-0">
           <div>
             <h2 className="text-base font-semibold text-zinc-900">Create Group Project</h2>
             <p className="text-xs text-zinc-500">Set up a collaborative workspace for your team</p>

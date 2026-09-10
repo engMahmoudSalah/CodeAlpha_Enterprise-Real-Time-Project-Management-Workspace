@@ -84,7 +84,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
       {/* Kanban Scroll Container */}
       <div
         id="kanban-board-container"
-        className="flex-1 overflow-x-auto px-4 sm:px-8 pb-8 flex items-start gap-4 sm:gap-6 min-h-0 scroll-smooth snap-x snap-mandatory sleek-scrollbar"
+        className="flex-1 overflow-x-auto px-4 sm:px-8 pb-24 sm:pb-8 pt-2 sm:pt-0 flex items-start gap-3 sm:gap-6 min-h-0 scroll-smooth snap-x snap-mandatory no-scrollbar sm:sleek-scrollbar"
       >
         {project.columns.map((column) => {
           const columnTasks = tasks
@@ -102,7 +102,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, column.id)}
-              className={`w-[82vw] max-w-[320px] sm:w-80 shrink-0 flex flex-col gap-3.5 max-h-full rounded-sm p-2 sm:p-2.5 transition-all snap-center sm:snap-align-none ${
+              className={`w-[88vw] max-w-[320px] sm:w-80 shrink-0 flex flex-col gap-3.5 max-h-full rounded-sm p-1.5 sm:p-2.5 transition-all snap-center sm:snap-align-none ${
                 isOver
                   ? 'bg-blue-50/70 ring-2 ring-blue-400/40 rounded-sm'
                   : 'bg-transparent'
@@ -140,7 +140,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
             </div>
 
             {/* Task list container */}
-            <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 min-h-[160px] sleek-scrollbar">
+            <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 min-h-[160px] no-scrollbar sm:sleek-scrollbar pb-10 sm:pb-0">
               {columnTasks.map((task) => (
                 <TaskCard
                   key={task.id}
@@ -168,7 +168,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
             <button
               id={`quick-add-bottom-btn-${column.id}`}
               onClick={() => onOpenCreateTask(column.id)}
-              className="py-2 px-3 text-xs font-semibold text-zinc-500 hover:text-blue-600 hover:bg-white rounded-sm flex items-center justify-center gap-1.5 transition-colors border border-transparent hover:border-zinc-200 hover:shadow-2xs cursor-pointer min-h-[36px]"
+              className="py-3 px-3 text-sm sm:text-xs font-semibold text-zinc-500 hover:text-blue-600 hover:bg-white rounded-sm flex items-center justify-center gap-1.5 transition-colors border border-transparent hover:border-zinc-200 hover:shadow-2xs cursor-pointer min-h-[44px]"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Task</span>

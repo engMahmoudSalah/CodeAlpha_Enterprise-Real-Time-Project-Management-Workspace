@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../context/WebSocketContext';
 import { soundManager } from '../utils/soundEffects';
@@ -130,6 +130,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [demoFilter, setDemoFilter] = useState<'all' | 'high' | 'urgent'>('all');
   const [activeFeatureTab, setActiveFeatureTab] = useState<'kanban' | 'collab' | 'sound' | 'security'>('kanban');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Monitor scroll position to toggle navbar transparent background before movement
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const filteredDemoTasks = useMemo(() => {
     if (demoFilter === 'all') return demoTasks;
@@ -155,18 +166,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 font-sans flex flex-col relative overflow-x-hidden selection:bg-blue-200 selection:text-blue-900">
       
-      {/* HEADER */}
-      <header className="sticky top-0 z-50 bg-white border-b border-zinc-200 transition-all">
+      {/* FIXED TOP NAV BAR */}
+      <header
+        id="landing-navbar"
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${
+          isScrolled
+            ? 'bg-white/95 backdrop-blur-md border-b border-zinc-200/90 shadow-xs'
+            : 'bg-transparent border-b border-transparent shadow-none'
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-zinc-900 flex items-center justify-center rounded-sm">
+            <div className="w-8 h-8 bg-zinc-900 flex items-center justify-center rounded-sm shadow-xs">
               <Layers className="w-4 h-4 text-white" />
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-lg font-semibold tracking-tight text-zinc-900">
+              <span className="text-lg font-bold tracking-tight text-zinc-900">
                 Velocity
               </span>
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 border border-zinc-200 rounded-sm text-[10px] font-medium bg-zinc-50 text-zinc-600 uppercase tracking-wider">
+              <span className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 border rounded-sm text-[10px] font-medium uppercase tracking-wider transition-colors ${
+                isScrolled
+                  ? 'border-zinc-200 bg-zinc-50 text-zinc-600'
+                  : 'border-zinc-300/60 bg-white/70 backdrop-blur-xs text-zinc-700 shadow-2xs'
+              }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                 System Active
               </span>
@@ -183,7 +205,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {currentUser ? (
               <button
                 onClick={onEnterWorkspace}
-                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-sm transition-colors"
+                className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 rounded-sm transition-colors shadow-xs cursor-pointer"
               >
                 Enter Workspace
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -192,13 +214,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="flex items-center gap-3">
                 <button
                   onClick={onOpenAuthModal}
-                  className="text-sm font-medium text-zinc-700 hover:text-zinc-900 transition-colors"
+                  className="text-sm font-medium text-zinc-700 hover:text-zinc-900 transition-colors cursor-pointer"
                 >
                   Sign In
                 </button>
                 <button
                   onClick={onOpenAuthModal}
-                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-sm transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-700 hover:bg-blue-800 rounded-sm transition-colors shadow-xs cursor-pointer"
                 >
                   Request Access
                 </button>
@@ -209,7 +231,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </header>
 
       {/* HERO SECTION */}
-      <section className="relative pt-24 pb-32 lg:pt-32 lg:pb-40 px-4 overflow-hidden border-b border-zinc-200 bg-white">
+      <section className="relative pt-28 pb-32 sm:pt-32 lg:pt-36 lg:pb-40 px-4 overflow-hidden border-b border-zinc-200 bg-white">
         {/* Subtle grid pattern background for official feel */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNlN2U1ZTQiLz48L3N2Zz4=')] [mask-image:linear-gradient(to_bottom,white,transparent)] pointer-events-none" />
         

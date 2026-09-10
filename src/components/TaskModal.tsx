@@ -322,7 +322,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const typingInThisTask = currentTypingUsers.filter((u) => u.taskId === task.id && u.userId !== currentUser?.id);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-xs p-3 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-zinc-900/60 backdrop-blur-xs p-0 sm:p-6 overflow-y-auto">
       <div
         id="task-detail-modal"
         className="bg-white rounded-sm border border-zinc-200 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-auto"

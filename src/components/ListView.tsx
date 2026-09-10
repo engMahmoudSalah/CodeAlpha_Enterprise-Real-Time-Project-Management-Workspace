@@ -33,7 +33,7 @@ export const ListView: React.FC<ListViewProps> = ({
   };
 
   return (
-    <div id="list-view-container" className="flex-1 overflow-y-auto px-4 sm:px-8 pb-8 max-w-6xl mx-auto w-full space-y-6 sm:space-y-8 sleek-scrollbar">
+    <div id="list-view-container" className="flex-1 overflow-y-auto px-2 sm:px-8 pb-20 sm:pb-8 pt-2 sm:pt-4 max-w-6xl mx-auto w-full space-y-6 sm:space-y-8 sleek-scrollbar">
       {project.columns.map((column) => {
         const columnTasks = tasks
           .filter((t) => t.columnId === column.id)
@@ -114,7 +114,7 @@ export const ListView: React.FC<ListViewProps> = ({
                               onMoveTask(task.id, doneCol.id);
                             }
                           }}
-                          className="shrink-0 p-1.5 -ml-1 text-zinc-400 hover:text-emerald-600 transition-colors cursor-pointer"
+                          className="shrink-0 p-2 -ml-2 text-zinc-400 hover:text-emerald-600 transition-colors cursor-pointer"
                         >
                           <CheckCircle2
                             className={`w-5 h-5 ${isDone ? 'text-emerald-500 fill-emerald-50' : 'text-zinc-300'}`}

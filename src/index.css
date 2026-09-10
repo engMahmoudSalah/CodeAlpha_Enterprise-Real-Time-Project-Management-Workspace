@@ -1,10 +1,22 @@
 @import "tailwindcss";
 
 @layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+  
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     color: #18181b;
     background-color: #fafafa;
+    /* Prevent pull-to-refresh & overscroll bouncing on mobile for a native app feel */
+    overscroll-behavior-y: none;
+    /* Support for mobile notches and safe areas */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Universal Custom Scrollbar: Sleek, delicate & tailored to the Zinc/Blue platform */
