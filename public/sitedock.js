@@ -197,3 +197,13 @@
   }
   if (document.readyState === "complete") setTimeout(go, 900); else addEventListener("load", function () { setTimeout(go, 900); });
 })();
+/* Keyboard focus ring fallback (zero specificity, so any site's own focus styles win). */
+(function () {
+  function ring() {
+    if (document.getElementById("gfk-focus")) return;
+    var s = document.createElement("style"); s.id = "gfk-focus";
+    s.textContent = ":where(a[href],button,input,select,textarea,summary,[tabindex]:not([tabindex='-1'])):focus-visible{outline:2px solid #2563eb;outline-offset:2px;box-shadow:0 0 0 4px rgba(255,255,255,.85)}";
+    document.head.appendChild(s);
+  }
+  if (document.head) ring(); else addEventListener("DOMContentLoaded", ring);
+})();
