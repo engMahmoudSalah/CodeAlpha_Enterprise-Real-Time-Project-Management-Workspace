@@ -99,3 +99,33 @@
   scrollbar-width: none;
 }
 
+
+/* Velocity identity: blueprint board, flow-lane columns with status glyphs */
+#kanban-board-container{
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(37,99,235,.13) 1px, transparent 1.5px),
+    linear-gradient(90deg, transparent 0, transparent calc(100% - 1px), rgba(37,99,235,.06) 100%);
+  background-size:22px 22px, 100% 100%;
+  background-position:0 0;
+}
+#kanban-board-container > section{
+  position:relative; border-radius:10px;
+  background:linear-gradient(180deg, rgba(37,99,235,.06), rgba(255,255,255,0) 160px);
+  border-top:3px solid #a1a1aa;
+}
+#kanban-board-container > section::after{
+  content:""; position:absolute; top:12px; right:46px; width:24px; height:26px; opacity:.55; pointer-events:none;
+  background-repeat:no-repeat; background-size:contain;
+}
+#kanban-board-container > section:nth-child(1){border-top-color:#94a3b8}
+#kanban-board-container > section:nth-child(1)::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Ccircle cx='13' cy='13' r='10' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-dasharray='3 3'/%3E%3C/svg%3E")}
+#kanban-board-container > section:nth-child(2){border-top-color:#2563eb}
+#kanban-board-container > section:nth-child(2)::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Ccircle cx='13' cy='13' r='10' fill='none' stroke='%23bfdbfe' stroke-width='3'/%3E%3Cpath d='M13 3a10 10 0 0 1 10 10' fill='none' stroke='%232563eb' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");animation:velspin 3.2s linear infinite}
+#kanban-board-container > section:nth-child(3){border-top-color:#f59e0b}
+#kanban-board-container > section:nth-child(3)::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Cpath d='M2 13s4-7 11-7 11 7 11 7-4 7-11 7S2 13 2 13z' fill='none' stroke='%23f59e0b' stroke-width='2'/%3E%3Ccircle cx='13' cy='13' r='3.5' fill='%23f59e0b'/%3E%3C/svg%3E")}
+#kanban-board-container > section:nth-child(n+4){border-top-color:#16a34a}
+#kanban-board-container > section:nth-child(n+4)::after{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Ccircle cx='13' cy='13' r='10' fill='%2316a34a' fill-opacity='.15' stroke='%2316a34a' stroke-width='2'/%3E%3Cpath d='M8 13.5l3.5 3.5L18 10' fill='none' stroke='%2316a34a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+#kanban-board-container [id^="task-card-"]{transition:transform .2s, box-shadow .2s}
+#kanban-board-container [id^="task-card-"]:hover{transform:translateY(-3px) rotate(-.4deg);box-shadow:0 10px 24px -10px rgba(37,99,235,.35)}
+@keyframes velspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#kanban-board-container > section::after{animation:none!important}}
