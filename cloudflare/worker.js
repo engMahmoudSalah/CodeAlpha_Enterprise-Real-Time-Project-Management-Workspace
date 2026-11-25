@@ -53,18 +53,21 @@ function setPath(o, p, v) { const ks = p.split("."); let t = o; for (let i = 0; 
 export class Hub extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env); this.sql = ctx.storage.sql; this.rl = new Map();
-    this.sql.exec(`CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);
+    if (ctx.storage.kv.get("schema_v") !== "2") {
+      this.sql.exec(`CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS accounts(uid TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT, photo TEXT, anon INTEGER DEFAULT 0, salt TEXT, hash TEXT, created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS docs(col TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY(col, id));
 CREATE TABLE IF NOT EXISTS revs(col TEXT PRIMARY KEY, rev INTEGER NOT NULL DEFAULT 0);`);
+      ctx.storage.kv.put("schema_v", "2");
+    }
   }
   one(q, ...a) { for (const r of this.sql.exec(q, ...a)) return r; return null; }
   all(q, ...a) { return [...this.sql.exec(q, ...a)]; }
   secret() { const r = this.one("SELECT v FROM kv WHERE k='sec'"); if (r) return r.v; const v = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join(""); this.sql.exec("INSERT INTO kv VALUES('sec', ?)", v); return v; }
   limited(key, max, ms) { const now = Date.now(), w = (this.rl.get(key) || []).filter((t) => now - t < ms); if (w.length >= max) { this.rl.set(key, w); return true; } w.push(now); this.rl.set(key, w); if (this.rl.size > 5000) this.rl.clear(); return false; }
   pub(a) { return { uid: a.uid, email: a.email || null, displayName: a.name || null, photoURL: a.photo || null, isAnonymous: !!a.anon, emailVerified: false }; }
-  bump(col) { this.sql.exec("INSERT INTO revs(col, rev) VALUES(?, 1) ON CONFLICT(col) DO UPDATE SET rev = rev + 1", col); }
-  rev(col) { const r = this.one("SELECT rev FROM revs WHERE col = ?", col); return r ? r.rev : 0; }
+  bump(col) { this.sql.exec("INSERT INTO revs(col, rev) VALUES(?, 1) ON CONFLICT(col) DO UPDATE SET rev = rev + 1", col); if (this._revs) this._revs.set(col, (this._revs.get(col) || 0) + 1); }
+  rev(col) { if (!this._revs) { this._revs = new Map(); for (const r of this.sql.exec("SELECT col, rev FROM revs")) this._revs.set(r.col, r.rev); } return this._revs.get(col) || 0; }
   async register(b, ip) {
     if (this.limited("reg:" + ip, 8, 36e5)) return { error: [429, "auth/too-many-requests", "Too many sign-ups. Try again later."] };
     const email = str(b.email, 200).toLowerCase(), pw = typeof b.password === "string" ? b.password : "";
@@ -89,11 +92,11 @@ CREATE TABLE IF NOT EXISTS revs(col TEXT PRIMARY KEY, rev INTEGER NOT NULL DEFAU
     this.sql.exec("INSERT INTO accounts(uid,anon,created) VALUES(?,1,?)", uid, Date.now());
     return { account: this.one("SELECT * FROM accounts WHERE uid = ?", uid) };
   }
-  account(uid) { return this.one("SELECT * FROM accounts WHERE uid = ?", uid); }
-  async profile(uid, b) { if (typeof b.displayName === "string") this.sql.exec("UPDATE accounts SET name = ? WHERE uid = ?", str(b.displayName, 80), uid); if (typeof b.photoURL === "string") this.sql.exec("UPDATE accounts SET photo = ? WHERE uid = ?", str(b.photoURL, 500), uid); return this.pub(this.account(uid)); }
+  account(uid) { if (!this._acc) this._acc = new Map(); let a = this._acc.get(uid); if (a === undefined) { a = this.one("SELECT * FROM accounts WHERE uid = ?", uid); if (a) { if (this._acc.size > 500) this._acc.clear(); this._acc.set(uid, a); } } return a; }
+  async profile(uid, b) { this._acc = null; if (typeof b.displayName === "string") this.sql.exec("UPDATE accounts SET name = ? WHERE uid = ?", str(b.displayName, 80), uid); if (typeof b.photoURL === "string") this.sql.exec("UPDATE accounts SET photo = ? WHERE uid = ?", str(b.photoURL, 500), uid); this._acc = null; return this.pub(this.account(uid)); }
   async password(uid, pw) {
     if (typeof pw !== "string" || pw.length < 6 || pw.length > 200) return { error: [400, "auth/weak-password", "Password should be at least 6 characters."] };
-    const salt = crypto.getRandomValues(new Uint8Array(16)); this.sql.exec("UPDATE accounts SET salt = ?, hash = ? WHERE uid = ?", b64(salt), await pbkdf2(pw, salt), uid); return { ok: true };
+    this._acc = null; const salt = crypto.getRandomValues(new Uint8Array(16)); this.sql.exec("UPDATE accounts SET salt = ?, hash = ? WHERE uid = ?", b64(salt), await pbkdf2(pw, salt), uid); this._acc = null; return { ok: true };
   }
   rows(col) { return this.all("SELECT id, data FROM docs WHERE col = ?", col).map((r) => ({ id: r.id, data: JSON.parse(r.data) })); }
   get(col, id) { const r = this.one("SELECT data FROM docs WHERE col = ? AND id = ?", col, id); return r ? JSON.parse(r.data) : null; }
