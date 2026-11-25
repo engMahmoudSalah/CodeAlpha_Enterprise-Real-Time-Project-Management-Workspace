@@ -59,6 +59,8 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       return;
     }
 
+    // Cloudflare Workers build: live data comes from polling, so there is no WebSocket server to join.
+    if (!(import.meta as any).env?.VITE_ENABLE_WS) { setConnected(true); return; }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     const wsUrl = `${protocol}//${host}`;

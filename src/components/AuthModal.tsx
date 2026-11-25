@@ -126,7 +126,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultTa
                 {tab === 'signin' ? 'Sign in to Velocity' : 'Create an Account'}
               </h2>
               <p className="text-xs text-zinc-500">
-                Cloud Firestore & Firebase Authentication
+                Secure workspace sign-in
               </p>
             </div>
           </div>

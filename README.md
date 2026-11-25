@@ -8,7 +8,7 @@
 
   <h1>⚡ Velocity Workspace</h1>
   <p><b>Enterprise-grade project and task management platform engineered for real-time collaboration.</b></p>
-  <p>🌍 <b>Live Deployment:</b> <a href="#">Coming Soon</a></p>
+  <p>🌍 <b>Live Deployment:</b> <a href="https://velocity.mahmodsalah.workers.dev/">velocity.mahmodsalah.workers.dev</a></p>
   
   <p>
     <img src="https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
