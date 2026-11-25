@@ -178,7 +178,7 @@
   function empties() {
     var l = document.querySelectorAll("p,div,span,td,h3,h4"), n = 0;
     for (var i = 0; i < l.length && n < 4; i++) {
-      var e = l[i]; if (e.__e || e.children.length > 1 || inSD(e)) continue; var t = (e.textContent || "").trim();
+      var e = l[i]; if (e.__e || e.children.length > 1 || inSD(e) || e.tagName === "SPAN" || e.closest(".fixed,[role=dialog],[aria-modal]")) continue; var pr = e.parentElement; if (pr && pr.children.length > 1) { var cs = getComputedStyle(pr); if (cs.display.indexOf("flex") > -1 && cs.flexDirection.indexOf("row") === 0) continue; } var t = (e.textContent || "").trim();
       if (t.length < 6 || t.length > 70 || !/^(no |nothing |you have no|لا (يوجد|توجد)|لم )/i.test(t)) continue;
       e.__e = 1; if (e.querySelector("svg")) continue; n++;
       var w = document.createElement("div"); w.setAttribute("data-vis", "1"); w.style.cssText = "text-align:center;color:inherit;pointer-events:none"; w.innerHTML = art(); e.insertBefore(w, e.firstChild); e.style.textAlign = "center";
