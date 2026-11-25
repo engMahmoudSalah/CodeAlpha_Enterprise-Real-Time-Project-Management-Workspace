@@ -123,6 +123,7 @@ async function handle(req, env, url) {
   if (p === "/api/auth/register" && m === "POST") { const r = await h.register(await readJson(req), ip); if (r.error) return err(...r.error); return json({ token: await makeToken(env, r.account.uid), user: await h.pub(r.account) }, 201); }
   if (p === "/api/auth/login" && m === "POST") { const r = await h.login(await readJson(req), ip); if (r.error) return err(...r.error); return json({ token: await makeToken(env, r.account.uid), user: await h.pub(r.account) }); }
   if (p === "/api/auth/anonymous" && m === "POST") { const r = await h.anon(ip); if (r.error) return err(...r.error); return json({ token: await makeToken(env, r.account.uid), user: await h.pub(r.account) }, 201); }
+  if (p === "/api/send-invite") return json({ error: "Email delivery is not set up yet.", details: "Email delivery is not set up yet. Copy the invite link from Pending Invites and send it yourself." }, 501);
   const uid = await readToken(env, req);
   if (!uid) return err(401, "unauthenticated", "Please sign in.");
   const a = await h.account(uid); if (!a) return err(401, "unauthenticated", "Please sign in.");

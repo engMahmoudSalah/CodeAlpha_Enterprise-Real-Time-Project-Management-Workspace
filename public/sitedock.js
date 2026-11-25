@@ -79,7 +79,7 @@
   var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   function start() {
     var cv = document.createElement("canvas"); cv.setAttribute("aria-hidden", "true"); cv.setAttribute("data-vis", "1");
-    cv.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;opacity:.6";
+    cv.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30;opacity:.42";
     document.body.appendChild(cv);
     var x = cv.getContext("2d"), W, H, dpr = Math.min(devicePixelRatio || 1, 2), paths = {};
     Object.keys(P).forEach(function (k) { try { paths[k] = new Path2D(P[k]); } catch (e) {} });
