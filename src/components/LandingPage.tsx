@@ -391,7 +391,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <IsoStack className="w-64 sm:w-80 mx-auto" />
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700 mb-3">How work moves</p>
-            <h2 id="flow-title" className="text-3xl font-semibold text-zinc-900 tracking-tight mb-8">Three layers, one source of truth.</h2>
+            <h2 id="flow-title" className="text-3xl font-semibold text-zinc-900 tracking-tight mb-8">One board, three steps.</h2>
             <ol className="space-y-6">
               {[['1', 'Plan', 'Create a project and break it into tasks with owners and priorities.'], ['2', 'Assign', 'Invite teammates; everyone sees the same board update live.'], ['3', 'Track', 'Watch status change in real time and export the list to CSV.']].map(([n, t, d]) => (
                 <li key={n} className="flex gap-4">
