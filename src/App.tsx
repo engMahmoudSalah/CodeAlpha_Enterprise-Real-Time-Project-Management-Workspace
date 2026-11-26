@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { tasksToCsv, downloadCsv } from './utils/exportCsv';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { WebSocketProvider, useWebSocket } from './context/WebSocketContext';
 import { Project, Task, ProjectInvitation, MemberRole } from './types';
@@ -978,6 +979,7 @@ const MainApplication: React.FC = () => {
                   setPriorityFilter('all');
                 }}
                 onOpenMembersModal={() => setMembersModalOpen(true)}
+                onExportCsv={() => downloadCsv(activeProject.name, tasksToCsv(activeProject, filteredTasks, users))}
                 onOpenCreateTask={() => {
                   setCreateTaskDefaultCol(undefined);
                   setCreateTaskModalOpen(true);

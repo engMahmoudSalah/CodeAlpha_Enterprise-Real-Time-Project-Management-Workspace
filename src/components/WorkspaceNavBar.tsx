@@ -12,6 +12,7 @@ import {
   ListTodo,
   X,
   Users,
+  Download,
 } from 'lucide-react';
 
 interface WorkspaceNavBarProps {
@@ -32,6 +33,7 @@ interface WorkspaceNavBarProps {
   onResetFilters: () => void;
   onOpenMembersModal: () => void;
   onOpenCreateTask: () => void;
+  onExportCsv?: () => void;
   onDeleteProject: (id: string, name: string) => void;
 }
 
@@ -53,6 +55,7 @@ export const WorkspaceNavBar: React.FC<WorkspaceNavBarProps> = ({
   onResetFilters,
   onOpenMembersModal,
   onOpenCreateTask,
+  onExportCsv,
   onDeleteProject,
 }) => {
   const projectMembers = users.filter((u) => activeProject.memberIds?.includes(u.id));
@@ -173,6 +176,18 @@ export const WorkspaceNavBar: React.FC<WorkspaceNavBarProps> = ({
             <span>Filters</span>
             {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-blue-600" />}
           </button>
+
+          {onExportCsv && (
+            <button
+              onClick={onExportCsv}
+              title="Export tasks as CSV"
+              aria-label="Export tasks as CSV"
+              className="bg-white border border-zinc-200 text-zinc-700 px-2.5 py-1 min-h-[32px] sm:min-h-[36px] rounded-sm text-xs font-semibold hover:bg-zinc-50 transition-colors flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5 text-zinc-500" />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+          )}
 
           {/* Add Task Primary Action Button */}
           <button
