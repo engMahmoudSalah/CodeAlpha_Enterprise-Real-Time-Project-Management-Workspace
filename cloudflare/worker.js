@@ -132,7 +132,7 @@ async function handle(req, env, url) {
   const a = await h.account(uid); if (!a) return err(401, "unauthenticated", "Please sign in.");
   if (p === "/api/auth/me") return json({ user: await h.pub(a) });
   if (p === "/api/auth/profile" && m === "POST") return json({ user: await h.profile(uid, await readJson(req)) });
-  if (p === "/api/auth/password" && m === "POST") { const r = await h.password(uid, (await readJson(req)).password); return r.error ? err(...r.error) : json(r); }
+  if (p === "/api/auth/password" && m === "POST") { try { const tb = JSON.parse(atob((req.headers.get("authorization") || "").slice(7).split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); if (!a.anon && Date.now() - (tb.e - 30 * 864e5) > 36e5) return err(403, "auth/requires-recent-login", "Please sign in again to change your password."); } catch { return err(401, "unauthenticated", "Please sign in."); } const r = await h.password(uid, (await readJson(req)).password); return r.error ? err(...r.error) : json(r); }
   if (p.startsWith("/api/db/") && m === "POST") {
     const b = await readJson(req), col = str(b.col, 40); if (!COLS.has(col)) return err(400, "invalid-argument", "Unknown collection.");
     const id = str(String(b.id ?? ""), 200);
