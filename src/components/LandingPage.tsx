@@ -266,7 +266,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </a>
             </div>
 
-            <div className="mt-12 flex items-center gap-8 border-t border-zinc-200 pt-8">
+            <div className="mt-12 flex items-start gap-5 sm:gap-8 border-t border-zinc-200 pt-8">
               <div>
                 <p className="text-3xl font-semibold text-zinc-900 tracking-tight">{projectsCount}</p>
                 <p className="text-xs text-zinc-500 uppercase tracking-widest mt-1">Active Projects</p>
