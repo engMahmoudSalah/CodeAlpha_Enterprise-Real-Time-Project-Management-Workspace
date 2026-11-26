@@ -136,6 +136,7 @@ async function handle(req, env, url) {
   if (p.startsWith("/api/db/") && m === "POST") {
     const b = await readJson(req), col = str(b.col, 40); if (!COLS.has(col)) return err(400, "invalid-argument", "Unknown collection.");
     const id = str(String(b.id ?? ""), 200);
+    if (col === "users" && p !== "/api/db/get" && p !== "/api/db/query" && id !== uid) { const me = await h.get("users", uid); if (!me || me.role !== "admin") return err(403, "permission-denied", "Only a workspace admin can change another user."); }
     if (p === "/api/db/get") { const d = await h.get(col, id); return json({ exists: d !== null, data: d }); }
     if (p === "/api/db/query") return json(await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined));
     if (p === "/api/db/set" || p === "/api/db/update") {
