@@ -1,3 +1,4 @@
+import { IsoStack } from './IsoStack';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../context/WebSocketContext';
@@ -384,6 +385,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* CORE CAPABILITIES SECTION */}
+      {/* FLOW STRIP: original isometric art + three steps */}
+      <section aria-labelledby="flow-title" className="py-16 sm:py-20 bg-white border-b border-zinc-200">
+        <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-2 gap-10 items-center">
+          <IsoStack className="w-64 sm:w-80 mx-auto" />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-700 mb-3">How work moves</p>
+            <h2 id="flow-title" className="text-3xl font-semibold text-zinc-900 tracking-tight mb-8">Three layers, one source of truth.</h2>
+            <ol className="space-y-6">
+              {[['1', 'Plan', 'Create a project and break it into tasks with owners and priorities.'], ['2', 'Assign', 'Invite teammates; everyone sees the same board update live.'], ['3', 'Track', 'Watch status change in real time and export the list to CSV.']].map(([n, t, d]) => (
+                <li key={n} className="flex gap-4">
+                  <span className="flex-none w-9 h-9 rounded-sm bg-blue-700 text-white font-semibold flex items-center justify-center" aria-hidden="true">{n}</span>
+                  <div><h3 className="font-semibold text-zinc-900">{t}</h3><p className="text-zinc-600 text-sm leading-relaxed">{d}</p></div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+
       <section id="features" className="py-24 bg-zinc-50 border-b border-zinc-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
