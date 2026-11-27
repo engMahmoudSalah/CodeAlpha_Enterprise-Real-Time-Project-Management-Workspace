@@ -98,6 +98,14 @@ CREATE TABLE IF NOT EXISTS revs(col TEXT PRIMARY KEY, rev INTEGER NOT NULL DEFAU
     if (typeof pw !== "string" || pw.length < 6 || pw.length > 200) return { error: [400, "auth/weak-password", "Password should be at least 6 characters."] };
     this._acc = null; const salt = crypto.getRandomValues(new Uint8Array(16)); this.sql.exec("UPDATE accounts SET salt = ?, hash = ? WHERE uid = ?", b64(salt), await pbkdf2(pw, salt), uid); this._acc = null; return { ok: true };
   }
+  async removeAccount(uid, pw) {
+    if (this.limited("delacc:" + uid, 5, 6e5)) return { error: [429, "auth/too-many-requests", "Too many attempts. Wait a few minutes."] };
+    const a = this.one("SELECT * FROM accounts WHERE uid = ?", uid);
+    if (!a) return { error: [404, "auth/user-not-found", "Account not found."] };
+    if (a.hash && (await pbkdf2(String(pw || ""), unb64(a.salt))) !== a.hash) return { error: [401, "auth/wrong-password", "Incorrect password."] };
+    this.sql.exec("DELETE FROM accounts WHERE uid = ?", uid); this.sql.exec("DELETE FROM docs WHERE col = 'users' AND id = ?", uid); this._acc = null; this.bump("users");
+    return { ok: true };
+  }
   rows(col) { return this.all("SELECT id, data FROM docs WHERE col = ?", col).map((r) => ({ id: r.id, data: JSON.parse(r.data) })); }
   get(col, id) { const r = this.one("SELECT data FROM docs WHERE col = ? AND id = ?", col, id); return r ? JSON.parse(r.data) : null; }
   query(col, cs, order, lim, since) {
@@ -132,6 +140,7 @@ async function handle(req, env, url) {
   const a = await h.account(uid); if (!a) return err(401, "unauthenticated", "Please sign in.");
   if (p === "/api/auth/me") return json({ user: await h.pub(a) });
   if (p === "/api/auth/profile" && m === "POST") return json({ user: await h.profile(uid, await readJson(req)) });
+  if (p === "/api/auth/delete" && m === "POST") { const r = await h.removeAccount(uid, (await readJson(req)).password); return r.error ? err(...r.error) : json(r); }
   if (p === "/api/auth/password" && m === "POST") { try { const tb = JSON.parse(atob((req.headers.get("authorization") || "").slice(7).split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); if (!a.anon && Date.now() - (tb.e - 30 * 864e5) > 36e5) return err(403, "auth/requires-recent-login", "Please sign in again to change your password."); } catch { return err(401, "unauthenticated", "Please sign in."); } const r = await h.password(uid, (await readJson(req)).password); return r.error ? err(...r.error) : json(r); }
   if (p.startsWith("/api/db/") && m === "POST") {
     const b = await readJson(req), col = str(b.col, 40); if (!COLS.has(col)) return err(400, "invalid-argument", "Unknown collection.");
