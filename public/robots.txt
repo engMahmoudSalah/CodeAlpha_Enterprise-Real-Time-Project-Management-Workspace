@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://velocity.mahmodsalah.workers.dev/sitemap.xml
