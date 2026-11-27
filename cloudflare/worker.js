@@ -199,7 +199,7 @@ async function handle(req, env, url) {
       else {
         const owner = cur[key] === uid;
         const invitee = col === "invitations" && ((me && cur.inviteeEmail === me) || cur.inviteeId === uid);
-        const onlyStatus = invitee && p !== "/api/db/delete" && b.data && typeof b.data === "object" && Object.keys(b.data).every((k) => k === "status" || k === "respondedAt" || k === "updatedAt");
+        const onlyStatus = invitee && p !== "/api/db/delete" && b.data && typeof b.data === "object" && Object.keys(b.data).every((k) => k === "status" || k === "respondedAt" || k === "updatedAt" || (k === "inviteeId" && b.data.inviteeId === uid));
         if (!owner && !onlyStatus) return err(403, "permission-denied", "You cannot change this item.");
         if (b.data && typeof b.data === "object" && owner && p !== "/api/db/delete") b.data = { ...b.data, [key]: uid };
       }
