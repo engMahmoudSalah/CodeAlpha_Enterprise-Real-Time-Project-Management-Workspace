@@ -53,6 +53,7 @@ function setPath(o, p, v) { const ks = p.split("."); let t = o; for (let i = 0; 
 export class Hub extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env); this.sql = ctx.storage.sql; this.rl = new Map();
+    try { this.sql.exec("SELECT del_at FROM accounts LIMIT 1"); } catch { try { this.sql.exec("ALTER TABLE accounts ADD COLUMN del_at INTEGER"); } catch {} }
     if (ctx.storage.kv.get("schema_v") !== "2") {
       this.sql.exec(`CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS accounts(uid TEXT PRIMARY KEY, email TEXT UNIQUE, name TEXT, photo TEXT, anon INTEGER DEFAULT 0, salt TEXT, hash TEXT, created INTEGER NOT NULL);
@@ -65,7 +66,7 @@ CREATE TABLE IF NOT EXISTS revs(col TEXT PRIMARY KEY, rev INTEGER NOT NULL DEFAU
   all(q, ...a) { return [...this.sql.exec(q, ...a)]; }
   secret() { const r = this.one("SELECT v FROM kv WHERE k='sec'"); if (r) return r.v; const v = [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join(""); this.sql.exec("INSERT INTO kv VALUES('sec', ?)", v); return v; }
   limited(key, max, ms) { const now = Date.now(), w = (this.rl.get(key) || []).filter((t) => now - t < ms); if (w.length >= max) { this.rl.set(key, w); return true; } w.push(now); this.rl.set(key, w); if (this.rl.size > 5000) this.rl.clear(); return false; }
-  pub(a) { return { uid: a.uid, email: a.email || null, displayName: a.name || null, photoURL: a.photo || null, isAnonymous: !!a.anon, emailVerified: false }; }
+  pub(a) { return { uid: a.uid, email: a.email || null, displayName: a.name || null, photoURL: a.photo || null, isAnonymous: !!a.anon, emailVerified: false, deletionScheduledAt: a.del_at || null }; }
   bump(col) { this.sql.exec("INSERT INTO revs(col, rev) VALUES(?, 1) ON CONFLICT(col) DO UPDATE SET rev = rev + 1", col); if (this._revs) this._revs.set(col, (this._revs.get(col) || 0) + 1); }
   rev(col) { if (!this._revs) { this._revs = new Map(); for (const r of this.sql.exec("SELECT col, rev FROM revs")) this._revs.set(r.col, r.rev); } return this._revs.get(col) || 0; }
   async register(b, ip) {
@@ -80,6 +81,7 @@ CREATE TABLE IF NOT EXISTS revs(col TEXT PRIMARY KEY, rev INTEGER NOT NULL DEFAU
   }
   async login(b, ip) {
     if (this.limited("login:" + ip, 15, 15 * 6e4)) return { error: [429, "auth/too-many-requests", "Too many attempts. Try again in a few minutes."] };
+    this.purge();
     const a = this.one("SELECT * FROM accounts WHERE email = ?", str(b.email, 200).toLowerCase());
     const bad = { error: [401, "auth/invalid-credential", "Incorrect email or password."] };
     if (!a || !a.hash) return bad;
@@ -103,9 +105,19 @@ CREATE TABLE IF NOT EXISTS revs(col TEXT PRIMARY KEY, rev INTEGER NOT NULL DEFAU
     const a = this.one("SELECT * FROM accounts WHERE uid = ?", uid);
     if (!a) return { error: [404, "auth/user-not-found", "Account not found."] };
     if (a.hash && (await pbkdf2(String(pw || ""), unb64(a.salt))) !== a.hash) return { error: [401, "auth/wrong-password", "Incorrect password."] };
-    this.sql.exec("DELETE FROM accounts WHERE uid = ?", uid); this.sql.exec("DELETE FROM docs WHERE col = 'users' AND id = ?", uid); this._acc = null; this.bump("users");
-    return { ok: true };
+    const at = a.del_at || Date.now() + 7 * 864e5;
+    this.sql.exec("UPDATE accounts SET del_at = ? WHERE uid = ?", at, uid); this._acc = null;
+    await this.arm();
+    return { ok: true, scheduledFor: at };
   }
+  restoreAccount(uid) { this.sql.exec("UPDATE accounts SET del_at = NULL WHERE uid = ?", uid); this._acc = null; return { ok: true }; }
+  purge() {
+    const due = this.all("SELECT uid FROM accounts WHERE del_at IS NOT NULL AND del_at <= ?", Date.now());
+    for (const r of due) { this.sql.exec("DELETE FROM accounts WHERE uid = ?", r.uid); this.sql.exec("DELETE FROM docs WHERE col = 'users' AND id = ?", r.uid); }
+    if (due.length) { this._acc = null; this.bump("users"); }
+  }
+  async arm() { const n = this.one("SELECT MIN(del_at) m FROM accounts WHERE del_at IS NOT NULL"); if (n && n.m) await this.ctx.storage.setAlarm(Math.max(n.m, Date.now() + 1000)); }
+  async alarm() { this.purge(); await this.arm(); }
   rows(col) { return this.all("SELECT id, data FROM docs WHERE col = ?", col).map((r) => ({ id: r.id, data: JSON.parse(r.data) })); }
   get(col, id) { const r = this.one("SELECT data FROM docs WHERE col = ? AND id = ?", col, id); return r ? JSON.parse(r.data) : null; }
   query(col, cs, order, lim, since) {
@@ -141,6 +153,7 @@ async function handle(req, env, url) {
   if (p === "/api/auth/me") return json({ user: await h.pub(a) });
   if (p === "/api/auth/profile" && m === "POST") return json({ user: await h.profile(uid, await readJson(req)) });
   if (p === "/api/auth/delete" && m === "POST") { const r = await h.removeAccount(uid, (await readJson(req)).password); return r.error ? err(...r.error) : json(r); }
+  if (p === "/api/auth/restore" && m === "POST") return json(await h.restoreAccount(uid));
   if (p === "/api/auth/password" && m === "POST") { try { const tb = JSON.parse(atob((req.headers.get("authorization") || "").slice(7).split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); if (!a.anon && Date.now() - (tb.e - 30 * 864e5) > 36e5) return err(403, "auth/requires-recent-login", "Please sign in again to change your password."); } catch { return err(401, "unauthenticated", "Please sign in."); } const r = await h.password(uid, (await readJson(req)).password); return r.error ? err(...r.error) : json(r); }
   if (p.startsWith("/api/db/") && m === "POST") {
     const b = await readJson(req), col = str(b.col, 40); if (!COLS.has(col)) return err(400, "invalid-argument", "Unknown collection.");
