@@ -191,6 +191,10 @@ async function handle(req, env, url) {
       }
       if (cur && p === "/api/db/delete" && cur.createdBy && cur.createdBy !== uid) return err(403, "permission-denied", "Only the project owner can delete it.");
     }
+    if (col === "notifications" && (p === "/api/db/set" || p === "/api/db/update")) {
+      if (await h.limited("nw:" + uid, 120, 6e4)) return err(429, "too-many-requests", "Too many notifications. Try again in a minute.");
+      if (b.data && typeof b.data === "object" && b.data.userId && b.data.userId !== uid) b.data = { ...b.data, actorId: uid };
+    }
     if ((col === "invitations" || col === "activity_logs") && p !== "/api/db/get" && p !== "/api/db/query") {
       const cur = id ? await h.get(col, id) : null;
       const me = a && a.email ? String(a.email).toLowerCase() : "";
