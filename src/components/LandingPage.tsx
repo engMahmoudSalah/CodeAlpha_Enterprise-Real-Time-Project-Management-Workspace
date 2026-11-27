@@ -231,6 +231,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </header>
 
+      <main className="contents">
       {/* HERO SECTION */}
       <section className="relative pt-28 pb-32 sm:pt-32 lg:pt-36 lg:pb-40 px-4 overflow-hidden border-b border-zinc-200 bg-white">
         {/* Subtle grid pattern background for official feel */}
@@ -532,6 +533,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
+      </main>
       {/* FOOTER */}
       <footer className="bg-white border-t border-zinc-200 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
