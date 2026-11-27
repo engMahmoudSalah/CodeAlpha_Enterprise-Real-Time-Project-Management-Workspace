@@ -175,6 +175,17 @@ async function handle(req, env, url) {
     }
     if (p === "/api/db/get") { let d = await h.get(col, id); if (col === "notifications" && d && d.userId !== uid) d = null; return json({ exists: d !== null, data: d }); }
     if (p === "/api/db/query" && col === "notifications") { const r = await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined); if (r.docs) r.docs = r.docs.filter((x) => x.data && x.data.userId === uid); return json(r); }
+    if (p === "/api/db/query" && col === "users") {
+      const cs = Array.isArray(b.cs) ? b.cs : [];
+      const r = await h.query(col, cs, b.order, Math.min(+b.limit || 0, 5000), undefined);
+      if (!r.docs) return json(r);
+      const pr = await h.query("projects", [], undefined, 5000);
+      const peers = new Set([uid]);
+      for (const x of pr.docs || []) { const d = x.data || {}; if ((Array.isArray(d.memberIds) && d.memberIds.includes(uid)) || d.createdBy === uid) { (d.memberIds || []).forEach((m) => peers.add(m)); if (d.createdBy) peers.add(d.createdBy); } }
+      const emailLookup = cs.some((c) => c && c.t === "w" && c.f === "email" && c.op === "==");
+      r.docs = r.docs.filter((x) => peers.has(x.id)).concat(emailLookup ? r.docs.filter((x) => !peers.has(x.id)).slice(0, 1).map((x) => ({ ...x, data: { id: x.id, name: (x.data || {}).name || "" } })) : []);
+      return json(r);
+    }
     if (p === "/api/db/query" && (col === "projects" || col === "tasks" || col === "comments")) {
       const r = await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined);
       if (!r.docs) return json(r);
@@ -188,6 +199,7 @@ async function handle(req, env, url) {
     if (p === "/api/db/query") return json(await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined));
     if (p === "/api/db/set" || p === "/api/db/update") {
       if (!id || !b.data || typeof b.data !== "object") return err(400, "invalid-argument", "id and data are required.");
+      if (col === "users" && id === uid) { const cur = await h.get("users", uid); const mode = p.endsWith("update") ? "update" : b.merge ? "merge" : "set"; if (mode === "set" || "role" in b.data) b.data = { ...b.data, role: (cur && cur.role) || "member" }; }
       const r = await h.write(col, id, b.data, p.endsWith("update") ? "update" : b.merge ? "merge" : "set"); return r.error ? err(...r.error) : json(r);
     }
     if (p === "/api/db/delete") { if (!id) return err(400, "invalid-argument", "id is required."); return json(await h.del(col, id)); }
