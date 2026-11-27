@@ -38,3 +38,7 @@ export async function updatePassword(_u: any, pw: string) { await api('/api/auth
 export async function sendPasswordResetEmail(): Promise<never> { throw new FbError('auth/operation-not-allowed', 'Password reset by email is not available yet. Change your password from your profile while signed in.'); }
 export async function sendEmailVerification(): Promise<never> { throw new FbError('auth/operation-not-allowed', 'Email verification is not available yet.'); }
 export type User = U;
+
+export async function refreshUser() { const j: any = await api('/api/auth/me', undefined, 'GET'); setUser(j.user); }
+export async function scheduleAccountDeletion(password: string) { await api('/api/auth/delete', { password }); await refreshUser(); }
+export async function restoreAccountNow() { await api('/api/auth/restore', {}); await refreshUser(); }

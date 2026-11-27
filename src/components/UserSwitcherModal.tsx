@@ -1,3 +1,4 @@
+import { scheduleAccountDeletion, restoreAccountNow } from '../shim/firebase-auth';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -157,6 +158,19 @@ export const UserSwitcherModal: React.FC<UserSwitcherModalProps> = ({
 
   // Security & Password States
   const [newPassword, setNewPassword] = useState('');
+  const [delPassword, setDelPassword] = useState('');
+  const [delBusy, setDelBusy] = useState(false);
+  const [delMsg, setDelMsg] = useState<string | null>(null);
+  const delAt: number | null = (firebaseUser as any)?.deletionScheduledAt || null;
+  const handleScheduleDelete = async () => {
+    if (!window.confirm('Your account will be scheduled for deletion in 7 days. You can restore it any time before then. Continue?')) return;
+    setDelBusy(true); setDelMsg(null);
+    try { await scheduleAccountDeletion(delPassword); setDelPassword(''); } catch (err: any) { setDelMsg(err.message || 'Could not schedule deletion'); } finally { setDelBusy(false); }
+  };
+  const handleRestoreAccount = async () => {
+    setDelBusy(true); setDelMsg(null);
+    try { await restoreAccountNow(); } catch (err: any) { setDelMsg(err.message || 'Could not restore account'); } finally { setDelBusy(false); }
+  };
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [securitySuccessMsg, setSecuritySuccessMsg] = useState<string | null>(null);
@@ -1457,6 +1471,35 @@ export const UserSwitcherModal: React.FC<UserSwitcherModalProps> = ({
               </div>
               {purgeMsg && <p className="text-xs text-rose-800 font-medium">{purgeMsg}</p>}
             </div>
+
+            {firebaseUser && !firebaseUser.isAnonymous && (
+              <div className="p-4 rounded-sm border border-rose-200 bg-white space-y-3">
+                <h4 className="text-xs font-bold text-rose-900">Delete account</h4>
+                {delAt ? (
+                  <>
+                    <p className="text-[11px] text-rose-700">
+                      Your account is scheduled for deletion on {new Date(delAt).toLocaleDateString()}. Restore it before then to keep everything.
+                    </p>
+                    <button type="button" disabled={delBusy} onClick={handleRestoreAccount} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-sm text-xs font-bold cursor-pointer disabled:opacity-50">
+                      {delBusy ? 'Restoring...' : 'Restore my account'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[11px] text-rose-700">
+                      Deletion is scheduled for 7 days from now. You can restore your account with one click before that.
+                    </p>
+                    <div className="flex gap-2">
+                      <input type="password" placeholder="Confirm with your password" value={delPassword} onChange={(e) => setDelPassword(e.target.value)} className="flex-1 px-3 py-2 text-xs border border-zinc-300 rounded-sm outline-hidden focus:ring-2 focus:ring-rose-500" />
+                      <button type="button" disabled={delBusy || !delPassword} onClick={handleScheduleDelete} className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-sm text-xs font-bold cursor-pointer disabled:opacity-50">
+                        {delBusy ? 'Working...' : 'Delete account'}
+                      </button>
+                    </div>
+                  </>
+                )}
+                {delMsg && <p className="text-xs text-rose-800 font-medium">{delMsg}</p>}
+              </div>
+            )}
 
             {/* Logout & Switch Account */}
             <div className="flex items-center justify-between pt-2 border-t border-zinc-200">
