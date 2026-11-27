@@ -1,4 +1,4 @@
-import { scheduleAccountDeletion, restoreAccountNow } from '../shim/firebase-auth';
+import { scheduleAccountDeletion, restoreAccountNow, downloadMyData } from '../shim/firebase-auth';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -167,6 +167,7 @@ export const UserSwitcherModal: React.FC<UserSwitcherModalProps> = ({
     setDelBusy(true); setDelMsg(null);
     try { await scheduleAccountDeletion(delPassword); setDelPassword(''); } catch (err: any) { setDelMsg(err.message || 'Could not schedule deletion'); } finally { setDelBusy(false); }
   };
+  const handleExport = async () => { setDelBusy(true); setDelMsg(null); try { await downloadMyData(); } catch (err: any) { setDelMsg(err.message || 'Could not export data'); } finally { setDelBusy(false); } };
   const handleRestoreAccount = async () => {
     setDelBusy(true); setDelMsg(null);
     try { await restoreAccountNow(); } catch (err: any) { setDelMsg(err.message || 'Could not restore account'); } finally { setDelBusy(false); }
@@ -1474,6 +1475,7 @@ export const UserSwitcherModal: React.FC<UserSwitcherModalProps> = ({
 
             {firebaseUser && !firebaseUser.isAnonymous && (
               <div className="p-4 rounded-sm border border-rose-200 bg-white space-y-3">
+                <button type="button" disabled={delBusy} onClick={handleExport} className="px-3 py-1.5 border border-zinc-300 text-zinc-800 rounded-sm text-xs font-bold cursor-pointer disabled:opacity-50">Download my data (JSON)</button>
                 <h4 className="text-xs font-bold text-rose-900">Delete account</h4>
                 {delAt ? (
                   <>

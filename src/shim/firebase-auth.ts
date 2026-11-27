@@ -42,3 +42,4 @@ export type User = U;
 export async function refreshUser() { const j: any = await api('/api/auth/me', undefined, 'GET'); setUser(j.user); }
 export async function scheduleAccountDeletion(password: string) { await api('/api/auth/delete', { password }); await refreshUser(); }
 export async function restoreAccountNow() { await api('/api/auth/restore', {}); await refreshUser(); }
+export async function downloadMyData() { const j = await api('/api/auth/export', undefined, 'GET'); const u = URL.createObjectURL(new Blob([JSON.stringify(j, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = u; a.download = 'velocity-my-data.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }

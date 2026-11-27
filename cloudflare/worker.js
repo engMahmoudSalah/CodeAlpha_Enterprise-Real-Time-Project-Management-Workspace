@@ -110,6 +110,14 @@ CREATE TABLE IF NOT EXISTS revs(col TEXT PRIMARY KEY, rev INTEGER NOT NULL DEFAU
     await this.arm();
     return { ok: true, scheduledFor: at };
   }
+  exportData(uid) {
+    const mine = (d) => ["createdBy", "assigneeId", "authorId", "ownerId", "userId", "uid", "id"].some((k) => d[k] === uid) || (Array.isArray(d.memberIds) && d.memberIds.includes(uid)), out = { exportedAt: new Date().toISOString() };
+    for (const col of ["users", "projects", "tasks", "comments", "notifications", "activity_logs"]) {
+      const rows = []; for (const r of this.sql.exec("SELECT data FROM docs WHERE col = ? LIMIT 20000", col)) { let d; try { d = JSON.parse(r.data); } catch { continue; } if (mine(d)) { rows.push(d); if (rows.length >= 5000) break; } }
+      out[col] = rows;
+    }
+    return out;
+  }
   restoreAccount(uid) { this.sql.exec("UPDATE accounts SET del_at = NULL WHERE uid = ?", uid); this._acc = null; return { ok: true }; }
   purge() {
     const due = this.all("SELECT uid FROM accounts WHERE del_at IS NOT NULL AND del_at <= ?", Date.now());
@@ -153,6 +161,7 @@ async function handle(req, env, url) {
   if (p === "/api/auth/me") return json({ user: await h.pub(a) });
   if (p === "/api/auth/profile" && m === "POST") return json({ user: await h.profile(uid, await readJson(req)) });
   if (p === "/api/auth/delete" && m === "POST") { const r = await h.removeAccount(uid, (await readJson(req)).password); return r.error ? err(...r.error) : json(r); }
+  if (p === "/api/auth/export" && m === "GET") { if (h.limited("exp:" + uid, 5, 36e5)) return err(429, "too-many-requests", "Too many exports. Try again later."); const d = await h.exportData(uid); return new Response(JSON.stringify(d, null, 2), { headers: { ...H, "content-disposition": 'attachment; filename="velocity-my-data.json"' } }); }
   if (p === "/api/auth/restore" && m === "POST") return json(await h.restoreAccount(uid));
   if (p === "/api/auth/password" && m === "POST") { try { const tb = JSON.parse(atob((req.headers.get("authorization") || "").slice(7).split(".")[0].replace(/-/g, "+").replace(/_/g, "/"))); if (!a.anon && Date.now() - (tb.e - 30 * 864e5) > 36e5) return err(403, "auth/requires-recent-login", "Please sign in again to change your password."); } catch { return err(401, "unauthenticated", "Please sign in."); } const r = await h.password(uid, (await readJson(req)).password); return r.error ? err(...r.error) : json(r); }
   if (p.startsWith("/api/db/") && m === "POST") {
