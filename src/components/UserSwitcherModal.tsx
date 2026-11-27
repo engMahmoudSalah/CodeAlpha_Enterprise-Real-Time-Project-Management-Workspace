@@ -1390,16 +1390,7 @@ export const UserSwitcherModal: React.FC<UserSwitcherModalProps> = ({
                   <span className="text-zinc-600">
                     Email Status: {firebaseUser.emailVerified ? '✅ Verified' : '⚠️ Not Verified'}
                   </span>
-                  {!firebaseUser.emailVerified && (
-                    <button
-                      type="button"
-                      disabled={isSendingVerify}
-                      onClick={handleSendVerifyEmail}
-                      className="px-2.5 py-1 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-sm cursor-pointer disabled:opacity-50"
-                    >
-                      {isSendingVerify ? 'Sending...' : 'Send Verification Email'}
-                    </button>
-                  )}
+                  {!firebaseUser.emailVerified && <span className="text-[11px] text-zinc-500">Email verification is coming soon</span>}
                 </div>
               )}
             </div>
@@ -1412,14 +1403,7 @@ export const UserSwitcherModal: React.FC<UserSwitcherModalProps> = ({
                     <KeyRound className="w-4 h-4 text-zinc-600" />
                     <h3 className="text-xs font-bold text-zinc-800">Password Management</h3>
                   </div>
-                  <button
-                    type="button"
-                    disabled={isSendingReset}
-                    onClick={handleSendResetEmail}
-                    className="text-xs font-bold text-blue-600 hover:text-blue-800 cursor-pointer disabled:opacity-50"
-                  >
-                    {isSendingReset ? 'Sending...' : 'Send Reset Link to Email'}
-                  </button>
+                  <span className="text-[11px] text-zinc-500">Change it below. Email reset is coming soon.</span>
                 </div>
 
                 <form onSubmit={handleChangePassword} className="space-y-3 pt-1">
