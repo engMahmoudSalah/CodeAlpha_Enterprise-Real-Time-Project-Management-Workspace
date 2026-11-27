@@ -173,7 +173,8 @@ async function handle(req, env, url) {
       const proj = pid ? await h.get("projects", String(pid)) : null;
       if (proj && Array.isArray(proj.memberIds) && proj.memberIds.length && !proj.memberIds.includes(uid)) { const me = await h.get("users", uid); if (!me || me.role !== "admin") return err(403, "permission-denied", "You are not a member of this project."); }
     }
-    if (p === "/api/db/get") { const d = await h.get(col, id); return json({ exists: d !== null, data: d }); }
+    if (p === "/api/db/get") { let d = await h.get(col, id); if (col === "notifications" && d && d.userId !== uid) d = null; return json({ exists: d !== null, data: d }); }
+    if (p === "/api/db/query" && col === "notifications") { const r = await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined); if (r.docs) r.docs = r.docs.filter((x) => x.data && x.data.userId === uid); return json(r); }
     if (p === "/api/db/query") return json(await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined));
     if (p === "/api/db/set" || p === "/api/db/update") {
       if (!id || !b.data || typeof b.data !== "object") return err(400, "invalid-argument", "id and data are required.");
