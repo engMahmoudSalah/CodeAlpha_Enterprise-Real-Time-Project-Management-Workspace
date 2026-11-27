@@ -168,6 +168,29 @@ async function handle(req, env, url) {
     const b = await readJson(req), col = str(b.col, 40); if (!COLS.has(col)) return err(400, "invalid-argument", "Unknown collection.");
     const id = str(String(b.id ?? ""), 200);
     if (col === "users" && p !== "/api/db/get" && p !== "/api/db/query" && id !== uid) { const me = await h.get("users", uid); if (!me || me.role !== "admin") return err(403, "permission-denied", "Only a workspace admin can change another user."); }
+    if (col === "projects" && p !== "/api/db/get" && p !== "/api/db/query") {
+      const cur = id ? await h.get("projects", id) : null;
+      const isP = (d) => d && ((Array.isArray(d.memberIds) && d.memberIds.includes(uid)) || d.createdBy === uid);
+      if (!cur && b.data && typeof b.data === "object" && p !== "/api/db/delete") b.data = { ...b.data, createdBy: uid };
+      if (cur && !isP(cur)) {
+        let ok = false;
+        const d = b.data;
+        if (p !== "/api/db/delete" && (p.endsWith("update") || b.merge) && d && typeof d === "object") {
+          const keys = Object.keys(d).filter((k) => k !== "updatedAt");
+          const okKeys = keys.length > 0 && keys.every((k) => k === "memberIds" || k === "members");
+          const nm = Array.isArray(d.memberIds) ? d.memberIds : cur.memberIds || [];
+          const memOk = nm.every((m) => m === uid || (cur.memberIds || []).includes(m));
+          const mapOk = !d.members || (typeof d.members === "object" && Object.keys(d.members).every((k) => k === uid || (cur.members && k in cur.members)));
+          if (okKeys && memOk && mapOk && nm.includes(uid)) {
+            const me = a && a.email ? String(a.email).toLowerCase() : "";
+            const inv = await h.query("invitations", [{ t: "w", f: "projectId", op: "==", v: id }], undefined, 200);
+            ok = (inv.docs || []).some((x) => { const i = x.data || {}; return i.status === "pending" && ((me && i.inviteeEmail === me) || i.inviteeId === uid) && (i.inviterId === cur.createdBy || (cur.memberIds || []).includes(i.inviterId)); });
+          }
+        }
+        if (!ok) return err(403, "permission-denied", "You are not a member of this project.");
+      }
+      if (cur && p === "/api/db/delete" && cur.createdBy && cur.createdBy !== uid) return err(403, "permission-denied", "Only the project owner can delete it.");
+    }
     if ((col === "tasks" || col === "comments") && p !== "/api/db/get" && p !== "/api/db/query") {
       const cur = id ? await h.get(col, id) : null; const pid = (cur && cur.projectId) || (b.data && b.data.projectId);
       const proj = pid ? await h.get("projects", String(pid)) : null;
