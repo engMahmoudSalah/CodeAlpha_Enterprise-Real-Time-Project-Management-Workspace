@@ -175,6 +175,16 @@ async function handle(req, env, url) {
     }
     if (p === "/api/db/get") { let d = await h.get(col, id); if (col === "notifications" && d && d.userId !== uid) d = null; return json({ exists: d !== null, data: d }); }
     if (p === "/api/db/query" && col === "notifications") { const r = await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined); if (r.docs) r.docs = r.docs.filter((x) => x.data && x.data.userId === uid); return json(r); }
+    if (p === "/api/db/query" && (col === "projects" || col === "tasks" || col === "comments")) {
+      const r = await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined);
+      if (!r.docs) return json(r);
+      const isMine = (d) => d && ((Array.isArray(d.memberIds) && d.memberIds.includes(uid)) || d.createdBy === uid);
+      if (col === "projects") { r.docs = r.docs.filter((x) => isMine(x.data)); return json(r); }
+      const pr = await h.query("projects", [], undefined, 5000);
+      const mine = new Set((pr.docs || []).filter((x) => isMine(x.data)).map((x) => x.id));
+      r.docs = r.docs.filter((x) => { const d = x.data || {}; return d.createdBy === uid || d.authorId === uid || (Array.isArray(d.assigneeIds) && d.assigneeIds.includes(uid)) || (d.projectId && mine.has(d.projectId)); });
+      return json(r);
+    }
     if (p === "/api/db/query") return json(await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), typeof b.since === "number" ? b.since : undefined));
     if (p === "/api/db/set" || p === "/api/db/update") {
       if (!id || !b.data || typeof b.data !== "object") return err(400, "invalid-argument", "id and data are required.");
