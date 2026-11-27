@@ -191,6 +191,19 @@ async function handle(req, env, url) {
       }
       if (cur && p === "/api/db/delete" && cur.createdBy && cur.createdBy !== uid) return err(403, "permission-denied", "Only the project owner can delete it.");
     }
+    if ((col === "invitations" || col === "activity_logs") && p !== "/api/db/get" && p !== "/api/db/query") {
+      const cur = id ? await h.get(col, id) : null;
+      const me = a && a.email ? String(a.email).toLowerCase() : "";
+      const key = col === "invitations" ? "inviterId" : "userId";
+      if (!cur) { if (p !== "/api/db/delete" && b.data && typeof b.data === "object") b.data = { ...b.data, [key]: uid }; }
+      else {
+        const owner = cur[key] === uid;
+        const invitee = col === "invitations" && ((me && cur.inviteeEmail === me) || cur.inviteeId === uid);
+        const onlyStatus = invitee && p !== "/api/db/delete" && b.data && typeof b.data === "object" && Object.keys(b.data).every((k) => k === "status" || k === "respondedAt" || k === "updatedAt");
+        if (!owner && !onlyStatus) return err(403, "permission-denied", "You cannot change this item.");
+        if (b.data && typeof b.data === "object" && owner && p !== "/api/db/delete") b.data = { ...b.data, [key]: uid };
+      }
+    }
     if ((col === "tasks" || col === "comments") && p !== "/api/db/get" && p !== "/api/db/query") {
       const cur = id ? await h.get(col, id) : null; const pid = (cur && cur.projectId) || (b.data && b.data.projectId);
       const proj = pid ? await h.get("projects", String(pid)) : null;
@@ -207,6 +220,16 @@ async function handle(req, env, url) {
       for (const x of pr.docs || []) { const d = x.data || {}; if ((Array.isArray(d.memberIds) && d.memberIds.includes(uid)) || d.createdBy === uid) { (d.memberIds || []).forEach((m) => peers.add(m)); if (d.createdBy) peers.add(d.createdBy); } }
       const emailLookup = cs.some((c) => c && c.t === "w" && c.f === "email" && c.op === "==");
       r.docs = r.docs.filter((x) => peers.has(x.id)).concat(emailLookup ? r.docs.filter((x) => !peers.has(x.id)).slice(0, 1).map((x) => ({ ...x, data: { id: x.id, name: (x.data || {}).name || "" } })) : []);
+      return json(r);
+    }
+    if (p === "/api/db/query" && (col === "invitations" || col === "activity_logs")) {
+      const r = await h.query(col, Array.isArray(b.cs) ? b.cs : [], b.order, Math.min(+b.limit || 0, 5000), undefined);
+      if (!r.docs) return json(r);
+      const me = a && a.email ? String(a.email).toLowerCase() : "";
+      if (col === "invitations") { r.docs = r.docs.filter((x) => { const d = x.data || {}; return d.inviterId === uid || d.inviteeId === uid || (me && d.inviteeEmail === me); }); return json(r); }
+      const pr = await h.query("projects", [], undefined, 5000);
+      const mine = new Set((pr.docs || []).filter((x) => { const d = x.data || {}; return (Array.isArray(d.memberIds) && d.memberIds.includes(uid)) || d.createdBy === uid; }).map((x) => x.id));
+      r.docs = r.docs.filter((x) => { const d = x.data || {}; return d.userId === uid || (d.projectId && mine.has(d.projectId)); });
       return json(r);
     }
     if (p === "/api/db/query" && (col === "projects" || col === "tasks" || col === "comments")) {
